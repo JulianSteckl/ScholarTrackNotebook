@@ -180,8 +180,6 @@
     prevContent = content;
 
     setTimeout(() => {
-      animatePageHeader(content);
-
       const subjCards = qsa('.subj-card', content);
       if (subjCards.length >= 4) {
         animateSubjectsGrid(content);
