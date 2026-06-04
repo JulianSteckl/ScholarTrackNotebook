@@ -29,20 +29,20 @@
       blocks.forEach(b => { b.style.opacity = '0'; b.style.transform = 'translateY(12px)'; });
 
       const tl = an.timeline({ easing: 'cubicBezier(0.22, 1, 0.36, 1)' });
-      if (eyebrow) tl.add({ targets: eyebrow, opacity: [0, 1], translateY: [12, 0], duration: 420 }, 0);
-      tl.add({ targets: h1, opacity: [0, 1], translateY: [16, 0], duration: 540 }, 80);
-      if (meta)    tl.add({ targets: meta,    opacity: [0, 1], translateY: [10, 0], duration: 380 }, 200);
-      if (actions) tl.add({ targets: actions, opacity: [0, 1], translateY: [8,  0], duration: 350 }, 280);
+      if (eyebrow) tl.add({ targets: eyebrow, opacity: [0, 1], translateY: [5, 0], duration: 280 }, 0);
+      tl.add({ targets: h1, opacity: [0, 1], translateY: [7, 0], duration: 340 }, 60);
+      if (meta)    tl.add({ targets: meta,    opacity: [0, 1], translateY: [4, 0], duration: 260 }, 140);
+      if (actions) tl.add({ targets: actions, opacity: [0, 1], translateY: [4, 0], duration: 240 }, 180);
       tl.finished.then(() => blocks.forEach(b => { b.style.opacity = ''; b.style.transform = ''; }));
     } else {
       // Fallback for custom-header pages (Homework, etc.)
       h1.style.opacity   = '0';
-      h1.style.transform = 'translateY(14px)';
+      h1.style.transform = 'translateY(6px)';
       an({
         targets:    h1,
         opacity:    [0, 1],
-        translateY: [14, 0],
-        duration:   540,
+        translateY: [6, 0],
+        duration:   320,
         easing:     'cubicBezier(0.22, 1, 0.36, 1)',
         complete:   () => { h1.style.opacity = ''; h1.style.transform = ''; }
       });
@@ -57,7 +57,7 @@
       if (c.dataset.animed) return;
       c.dataset.animed  = 'pending';
       c.style.opacity   = '0';
-      c.style.transform = 'translateY(16px)';
+      c.style.transform = 'translateY(6px)';
     });
 
     const pending = targets.filter(c => c.dataset.animed === 'pending');
@@ -79,9 +79,9 @@
           an({
             targets:    b,
             opacity:    [0, 1],
-            translateY: [16, 0],
-            delay:      an.stagger(50),
-            duration:   440,
+            translateY: [6, 0],
+            delay:      an.stagger(25),
+            duration:   280,
             easing:     'easeOutQuad',
             begin(anim) {
               anim.animatables.forEach(a => {
@@ -114,15 +114,15 @@
     cards.forEach(c => {
       c.dataset.animed  = 'pending';
       c.style.opacity   = '0';
-      c.style.transform = 'scale(0.93)';
+      c.style.transform = 'translateY(6px)';
     });
     an({
       targets:  cards,
       opacity:  [0, 1],
-      scale:    [0.93, 1],
-      delay:    an.stagger(55, { from: 'center' }),
-      duration: 480,
-      easing:   'easeOutBack',
+      translateY: [6, 0],
+      delay:    an.stagger(30, { from: 'center' }),
+      duration: 300,
+      easing:   'easeOutQuad',
       begin(anim) {
         anim.animatables.forEach(a => {
           a.target.style.opacity   = '';
@@ -139,15 +139,14 @@
     cards.forEach(c => {
       c.dataset.animed  = 'pending';
       c.style.opacity   = '0';
-      c.style.transform = 'translateY(14px) scale(0.97)';
+      c.style.transform = 'translateY(5px)';
     });
     an({
       targets:  cards,
       opacity:  [0, 1],
-      translateY: [14, 0],
-      scale:    [0.97, 1],
-      delay:    an.stagger(45, { from: 'first' }),
-      duration: 420,
+      translateY: [5, 0],
+      delay:    an.stagger(25, { from: 'first' }),
+      duration: 260,
       easing:   'easeOutQuad',
       begin(anim) {
         anim.animatables.forEach(a => {
