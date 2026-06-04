@@ -1871,6 +1871,7 @@ function ToolCard({ tool }) {
   const [hovered, setHovered] = React.useState(false);
   return (
     <a
+      className="tool-card"
       href={tool.url}
       target="_blank"
       rel="noopener noreferrer"
@@ -1968,7 +1969,7 @@ function ToolsContent() {
       </div>
 
       {/* Grid */}
-      <div style={{
+      <div className="tools-grid" style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
         gap: 14,

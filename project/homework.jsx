@@ -199,7 +199,7 @@ function HwCard({ hw, store, onToggle, onDelete }) {
   const open = () => { window.location.hash = "#/homework/" + hw.id; };
 
   return (
-    <div onClick={open} style={{
+    <div className="hw-card" onClick={open} style={{
       background: "var(--surface)", border: "1px solid var(--hairline)",
       borderRadius: 8, overflow: "hidden", cursor: "pointer",
       boxShadow: "0 1px 3px rgba(30,20,8,0.07), 0 2px 0 0 var(--rule)",
