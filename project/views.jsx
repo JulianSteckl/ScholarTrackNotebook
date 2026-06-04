@@ -209,122 +209,236 @@ function TakeQuiz({ type, deckId, onExit }) {
   return <Component deckId={deckId} onExit={onExit} />;
 }
 
-// ─────────────── AI Study Plan panel
+
+// ─────────────── AI Study Plan — hero, auto-generates on load
 
 function AIStudyPlan() {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [plan, setPlan] = React.useState("");
   const [error, setError] = React.useState("");
+  const [generated, setGenerated] = React.useState(false);
 
   const generate = async () => {
-    setLoading(true); setError(""); setPlan("");
+    setLoading(true); setError(""); setPlan(""); setGenerated(false);
     const openHW = [...HOMEWORK, ...nbGetHomework()].filter((h) => !h.done);
     const now = new Date();
-    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const today = dayNames[now.getDay()];
+    const dayNamesLong = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const today = dayNamesLong[now.getDay()];
     const dateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-
     const hwList = openHW.map((h) => {
       const s = subjectBy(h.subject);
-      return `- ${s.short}: "${h.title}" — due ${h.due}, est. ${h.est}${h.urgent ? " [URGENT]" : ""}`;
+      return "- " + s.short + ": \"" + h.title + "\" — due " + h.due + ", est. " + h.est + (h.urgent ? " [URGENT]" : "");
     }).join("\n") || "No open homework.";
-
     const quizList = QUIZZES_UPCOMING.map((q) => {
       const s = subjectBy(q.subject);
-      return `- ${s.short}: "${q.title}" on ${q.when} (confidence ${Math.round(q.confidence * 100)}%)`;
+      return "- " + s.short + ": \"" + q.title + "\" on " + q.when + " (confidence " + Math.round(q.confidence * 100) + "%)";
     }).join("\n") || "No upcoming quizzes.";
-
-    const prompt = `You are a study coach for a high school student. Today is ${dateStr}.
-
-Open homework:
-${hwList}
-
-Upcoming quizzes:
-${quizList}
-
-Create a realistic day-by-day study plan for the rest of this week. For each day (starting with today, ${today}), suggest what to work on and when (afternoon/evening). Be specific about which assignments to tackle each day and in what order. Keep it concise — one line per task. Format as:
-
-**Today (${today})**
-- Task · time estimate
-
-**Tomorrow**
-- Task · time estimate
-
-...and so on. Max 5 days. End with one motivating sentence.`;
-
+    const prompt = "You are a study coach for a high school student. Today is " + dateStr + ".\n\nOpen homework:\n" + hwList + "\n\nUpcoming quizzes:\n" + quizList + "\n\nCreate a realistic day-by-day study plan for the rest of this week. For each day (starting with today, " + today + "), suggest what to work on and when (afternoon/evening). Be specific about which assignments to tackle each day and in what order. Keep it concise — one line per task. Format as:\n\n**Today (" + today + ")**\n- Task · time estimate\n\n**Tomorrow**\n- Task · time estimate\n\n...and so on. Max 5 days. End with one motivating sentence.";
     try {
       const text = await aiComplete(prompt);
       setPlan(text || "(no response)");
+      setGenerated(true);
     } catch(e) {
-      if (e.message === "no-key") {
-        setError("__no-key__");
-      } else if (e.message === "invalid-key") {
-        setError("Invalid API key — update it via the ✦ Connect AI button.");
-      } else {
-        setError("Couldn't generate plan right now. Try again in a moment.");
-      }
+      if (e.message === "no-key") { setError("__no-key__"); }
+      else if (e.message === "invalid-key") { setError("Invalid API key — update it via the ✦ Connect AI button."); }
+      else { setError("Couldn't generate plan right now. Try again in a moment."); }
     } finally { setLoading(false); }
   };
 
-  React.useEffect(() => { if (open && !plan && !loading) generate(); }, [open]);
+  React.useEffect(() => { if (nbGetApiKey()) { generate(); } }, []);
+
+  const parsedPlan = React.useMemo(() => {
+    if (!plan) return { sections: [], trailingNote: "" };
+    const sections = [];
+    let cur = null;
+    let trailingNote = "";
+    for (const raw of plan.split("\n")) {
+      const line = raw.trim();
+      if (line.startsWith("**") && line.endsWith("**")) {
+        if (cur) sections.push(cur);
+        cur = { heading: line.replace(/\*\*/g, ""), items: [] };
+      } else if (cur && line.startsWith("- ")) {
+        cur.items.push(line.slice(2));
+      } else if (line && cur && !line.startsWith("- ")) {
+        trailingNote = line;
+      } else if (line && !cur) {
+        trailingNote = line;
+      }
+    }
+    if (cur) {
+      if (cur.items.length === 0) trailingNote = cur.heading;
+      else sections.push(cur);
+    }
+    return { sections, trailingNote };
+  }, [plan]);
+
+  const subjectColorForItem = (text) => {
+    const s = SUBJECTS.find(sub =>
+      text.toLowerCase().includes(sub.short.toLowerCase()) ||
+      text.toLowerCase().includes(sub.name.toLowerCase())
+    );
+    return s ? s.color : "var(--accent)";
+  };
 
   return (
-    <div className="sn-card" style={{ marginBottom: 20, borderLeft: "3px solid var(--accent)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div className="sn-card-title" style={{ marginBottom: 2 }}>
-            <span style={{ fontFamily: "var(--f-display)", fontStyle: "italic", marginRight: 6 }}>✦</span>
-            <span>AI Study Plan</span>
-          </div>
-          <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)" }}>
-            Adapts to your homework, quizzes, and due dates
+    <div style={{
+      marginBottom: 22,
+      border: "1px solid var(--hairline)",
+      borderRadius: 10,
+      overflow: "hidden",
+      background: "var(--surface)",
+      position: "relative",
+    }}>
+      <div style={{
+        position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+        background: "linear-gradient(180deg, var(--accent) 0%, var(--plum) 100%)",
+        borderRadius: "10px 0 0 10px",
+        pointerEvents: "none",
+      }} />
+      <div
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "13px 16px 13px 20px",
+          borderBottom: open ? "1px solid var(--hairline)" : "none",
+          cursor: "pointer", userSelect: "none",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: 8,
+            background: "var(--accent-soft)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 15, color: "var(--accent)", flexShrink: 0,
+          }}>✦</div>
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: "-0.015em", color: "var(--ink)" }}>AI Study Plan</div>
+            <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", marginTop: 1.5 }}>
+              {loading ? "Analyzing your workload…" : generated ? "Personalized to your homework & quizzes" : "Day-by-day recommendations, tailored to you"}
+            </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {open && <button className="sn-btn ghost" onClick={generate} style={{ fontSize: 11 }}>↻ Regenerate</button>}
-          <button className="sn-btn" style={{ background: open ? "var(--bg-2)" : "var(--accent)", color: open ? "var(--ink)" : "white", borderColor: "var(--accent)" }}
-            onClick={() => setOpen(v => !v)}>
-            {open ? "Hide plan" : "Generate my plan →"}
-          </button>
+        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+          {generated && !loading && (
+            <button className="sn-btn ghost"
+              onClick={(e) => { e.stopPropagation(); generate(); }}
+              style={{ fontSize: 11, padding: "4px 10px" }}>↻ Refresh</button>
+          )}
+          {!generated && !loading && !error && (
+            <button className="sn-btn"
+              onClick={(e) => { e.stopPropagation(); generate(); setOpen(true); }}
+              style={{ fontSize: 11, padding: "4px 12px", background: "var(--accent)", color: "white", borderColor: "var(--accent)" }}>
+              Generate plan →
+            </button>
+          )}
+          <div style={{
+            width: 22, height: 22, borderRadius: 5,
+            background: "var(--bg-2)", border: "1px solid var(--hairline)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, color: "var(--ink-3)",
+            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+            transition: "transform 0.15s ease",
+          }}>▾</div>
         </div>
       </div>
-
       {open && (
-        <div style={{ marginTop: 16, borderTop: "1px solid var(--hairline)", paddingTop: 14 }}>
+        <div style={{ padding: "16px 20px" }}>
           {loading && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontFamily: "var(--f-display)", fontStyle: "italic" }}>
-              <div className="ai-dots"><span></span><span></span><span></span></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", color: "var(--ink-2)" }}>
+              <div className="ai-dots"><span/><span/><span/></div>
               <style>{`.ai-dots{display:flex;gap:5px}.ai-dots span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:dot-pulse .9s ease infinite}.ai-dots span:nth-child(2){animation-delay:.15s}.ai-dots span:nth-child(3){animation-delay:.3s}@keyframes dot-pulse{0%,80%,100%{opacity:.25;transform:scale(.85)}40%{opacity:1;transform:scale(1.1)}}`}</style>
-              Building your plan…
+              <span style={{ fontFamily: "var(--f-display)", fontStyle: "italic", fontSize: 13.5 }}>Building your personalized plan…</span>
             </div>
           )}
-          {error && error !== "__no-key__" && <div style={{ color: "var(--accent)", fontSize: 13 }}>{error}</div>}
           {error === "__no-key__" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ fontSize: 13, color: "var(--ink-2)" }}>Connect your API key to generate a real study plan.</div>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+              padding: "14px 16px", borderRadius: 8,
+              background: "var(--bg-2)", border: "1px dashed var(--hairline)",
+            }}>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 4 }}>Connect Claude AI for a smart day-by-day study plan</div>
+                <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
+                  Adapts to your actual homework, urgency, and quiz schedule
+                </div>
+              </div>
               <button className="sn-btn primary" style={{ flexShrink: 0, fontSize: 12 }}
-                onClick={() => window.dispatchEvent(new Event("openApiKeyModal"))}>✦ Connect AI</button>
+                onClick={() => window.dispatchEvent(new Event("openApiKeyModal"))}>
+                ✦ Connect AI
+              </button>
             </div>
           )}
-          {plan && (
-            <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--ink)" }}>
-              {plan.split("\n").map((line, i) => {
-                if (line.startsWith("**") && line.endsWith("**"))
-                  return <div key={i} style={{ fontFamily: "var(--f-display)", fontSize: 16, fontWeight: 600, marginTop: i > 0 ? 14 : 0, marginBottom: 4 }}>{line.replace(/\*\*/g, "")}</div>;
-                if (line.startsWith("- "))
-                  return <div key={i} style={{ display: "flex", gap: 8, paddingLeft: 4 }}><span style={{ color: "var(--accent)" }}>•</span>{line.slice(2)}</div>;
-                if (line.trim() === "") return <div key={i} style={{ height: 4 }} />;
-                return <div key={i} style={{ fontStyle: "italic", color: "var(--ink-2)", marginTop: 10 }}>{line}</div>;
-              })}
+          {error && error !== "__no-key__" && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ color: "var(--accent)", fontSize: 12.5 }}>{error}</div>
+              <button className="sn-btn ghost" onClick={generate} style={{ fontSize: 11 }}>Retry</button>
             </div>
           )}
+          {plan && (() => {
+            const { sections, trailingNote } = parsedPlan;
+            if (!sections.length && !trailingNote) return null;
+            return (
+              <div>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(" + Math.min(sections.length, 5) + ", 1fr)",
+                  gap: 9,
+                  marginBottom: trailingNote ? 12 : 0,
+                }}>
+                  {sections.map((sec, si) => (
+                    <div key={si} style={{
+                      padding: "10px 11px", borderRadius: 7,
+                      background: "var(--bg-2)", border: "1px solid var(--hairline)",
+                      borderTop: "2px solid " + (si === 0 ? "var(--accent)" : "var(--hairline)"),
+                    }}>
+                      <div style={{
+                        fontFamily: "var(--f-mono)", fontSize: 9.5,
+                        color: si === 0 ? "var(--accent)" : "var(--ink-3)",
+                        textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 9, lineHeight: 1.2,
+                      }}>{sec.heading}</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {sec.items.length === 0 && (
+                          <div style={{ fontSize: 11, fontStyle: "italic", color: "var(--ink-3)" }}>Free day</div>
+                        )}
+                        {sec.items.map((item, ii) => {
+                          const color = subjectColorForItem(item);
+                          const dotIdx = item.lastIndexOf("·");
+                          const taskText = dotIdx > -1 ? item.slice(0, dotIdx).trim() : item;
+                          const timeText = dotIdx > -1 ? item.slice(dotIdx + 1).trim() : "";
+                          return (
+                            <div key={ii} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 11.5, lineHeight: 1.4 }}>
+                              <span style={{ width: 5, height: 5, borderRadius: 1.5, background: color, flexShrink: 0, marginTop: 4 }}/>
+                              <div style={{ minWidth: 0 }}>
+                                <span style={{ color: "var(--ink)" }}>{taskText}</span>
+                                {timeText && (
+                                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginLeft: 5 }}>· {timeText}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {trailingNote && (
+                  <div style={{
+                    paddingTop: 12, borderTop: "1px solid var(--hairline)",
+                    fontFamily: "var(--f-display)", fontStyle: "italic",
+                    fontSize: 13, color: "var(--ink-2)", textAlign: "center", lineHeight: 1.5,
+                  }}>{trailingNote}</div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
   );
 }
 
+// ─────────────── Pomodoro Focus Timer
 // ─────────────── Pomodoro Focus Timer
 
 function PomodoroTimer() {
@@ -641,6 +755,365 @@ function ScheduleContent() {
     </>
   );
 }
+
+
+// ─────────────── Schedule view (full week)
+
+function ScheduleContent() {
+  const store = useNbStore();
+  const [weekOffset, setWeekOffset] = React.useState(0);
+
+  const now = new Date();
+  const isCurrentWeek = weekOffset === 0;
+
+  const viewMonday = new Date(now);
+  viewMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
+  viewMonday.setHours(0, 0, 0, 0);
+
+  const colDates = [0, 1, 2, 3, 4].map((off) => {
+    const d = new Date(viewMonday);
+    d.setDate(viewMonday.getDate() + off);
+    return d;
+  });
+
+  const todayDayIndex = isCurrentWeek ? ((now.getDay() + 6) % 7) : -1;
+  const weekRange = colDates[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    + " – " + colDates[4].toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  const termInfo = (() => {
+    try {
+      const p = JSON.parse(localStorage.getItem("nb-profile-v1") || "null");
+      const month = viewMonday.getMonth();
+      const term = month >= 7 ? "Fall" : "Spring";
+      const wk = p && p.yearStart ? Math.min(Math.ceil((viewMonday - new Date(p.yearStart.year, p.yearStart.month, 1)) / 604800000), 36) : "—";
+      const weekLabel = weekOffset === 0 ? "this week" : weekOffset < 0 ? Math.abs(weekOffset) + " week" + (Math.abs(weekOffset) > 1 ? "s" : "") + " ago" : weekOffset + " week" + (weekOffset > 1 ? "s" : "") + " ahead";
+      return term + " · week " + wk + " · " + weekLabel;
+    } catch { return weekOffset === 0 ? "This week" : weekOffset < 0 ? "Previous week" : "Next week"; }
+  })();
+
+  const allHW = React.useMemo(() => [...HOMEWORK, ...store.homework], [store.homework]);
+  const allQuizzes = React.useMemo(() => [...QUIZZES_UPCOMING, ...nbGetQuizzes()], [store.homework]);
+
+  const parseEst = (est) => {
+    if (!est) return 0;
+    const h = est.match(/(\d+)h/); const m = est.match(/(\d+)m/);
+    return (h ? parseInt(h[1]) * 60 : 0) + (m ? parseInt(m[1]) : 0);
+  };
+
+  const dayItems = colDates.map((colDate) => {
+    const hw = allHW.filter((h) => {
+      if (h.done) return false;
+      const d = dueStringToDate(h.due, now);
+      return d && d.toDateString() === colDate.toDateString();
+    });
+    const quizzes = allQuizzes.filter((q) => {
+      const d = dueStringToDate(q.when || q.dateStr, now);
+      return d && d.toDateString() === colDate.toDateString();
+    });
+    const loadMins = hw.reduce((s, h) => s + parseEst(h.est), 0) + quizzes.length * 45;
+    const urgentCount = hw.filter(h => h.urgent).length;
+    return { hw, quizzes, loadMins, urgentCount };
+  });
+
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const totalItems = dayItems.reduce((s, d) => s + d.hw.length + d.quizzes.length, 0);
+  const maxLoad = Math.max(...dayItems.map(d => d.loadMins), 1);
+  const weekHW = dayItems.flatMap(d => d.hw);
+  const weekQuizzes = dayItems.flatMap(d => d.quizzes);
+  const urgentCount = weekHW.filter(h => h.urgent).length;
+  const totalMins = weekHW.reduce((s, h) => s + parseEst(h.est), 0);
+  const timeStr = totalMins === 0 ? "—" : totalMins >= 60
+    ? Math.floor(totalMins / 60) + "h" + (totalMins % 60 > 0 ? " " + (totalMins % 60) + "m" : "") : totalMins + "m";
+  const busiestIdx = dayItems.reduce((best, d, i) => d.loadMins > dayItems[best].loadMins ? i : best, 0);
+
+  const heatColor = (loadMins, maxLoad) => {
+    if (loadMins === 0) return "var(--hairline)";
+    const r = loadMins / maxLoad;
+    if (r >= 0.75) return "var(--accent)";
+    if (r >= 0.45) return "var(--ochre)";
+    if (r >= 0.2)  return "var(--info)";
+    return "var(--done)";
+  };
+
+  const urgencyColor = (h) => {
+    if (h.urgent) return "var(--accent)";
+    const est = parseEst(h.est);
+    if (est >= 90) return "var(--ochre)";
+    return "var(--done)";
+  };
+
+  const emptyDayCopy = [
+    "Free block — ideal for review",
+    "Use this time for flashcard practice",
+    "Great day to get ahead on readings",
+    "Low pressure — perfect for deep work",
+    "Catch up or preview next week",
+  ];
+
+  return (
+    <>
+      <PageHeader eyebrow={termInfo} title="Your" italic="schedule." meta={weekRange} actions={<>
+        <button className="sn-btn ghost" onClick={() => setWeekOffset((w) => w - 1)}>← Week</button>
+        <button className="sn-btn ghost" onClick={() => setWeekOffset((w) => w + 1)}>Week →</button>
+        <button className="sn-btn" onClick={() => setWeekOffset(0)} disabled={weekOffset === 0} style={{ opacity: weekOffset === 0 ? 0.4 : 1 }}>Today</button>
+      </>} />
+
+      {/* ── AI Study Plan — primary hero ── */}
+      <AIStudyPlan />
+
+      {/* ── Workload heatmap ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)",
+          textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8,
+        }}>
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <rect x="0" y="4" width="2.5" height="7" rx="1" fill="var(--done)" opacity="0.75"/>
+            <rect x="3" y="2" width="2.5" height="9" rx="1" fill="var(--ochre)" opacity="0.75"/>
+            <rect x="6" y="5.5" width="2.5" height="5.5" rx="1" fill="var(--accent)" opacity="0.75"/>
+            <rect x="8.5" y="1" width="2.5" height="10" rx="1" fill="var(--accent)" opacity="0.5"/>
+          </svg>
+          Workload heatmap
+          <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+            {[["Low","var(--done)"],["Med","var(--ochre)"],["High","var(--accent)"]].map(([label,color]) => (
+              <span key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 2, background: color, opacity: 0.75, display: "inline-block" }}/>
+                <span style={{ fontSize: 9, color: "var(--ink-3)" }}>{label}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+          {dayItems.map((d, i) => {
+            const pct = maxLoad > 0 ? d.loadMins / maxLoad : 0;
+            const color = heatColor(d.loadMins, maxLoad);
+            const isBusiest = i === busiestIdx && d.loadMins > 0;
+            return (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ height: 36, background: "var(--bg-2)", borderRadius: 5, overflow: "hidden", position: "relative", border: "1px solid var(--hairline)" }}>
+                  <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0,
+                    height: Math.max(pct * 100, d.loadMins > 0 ? 10 : 0) + "%",
+                    background: color, opacity: 0.72,
+                    transition: "height 0.4s ease",
+                    borderRadius: "4px 4px 0 0",
+                  }} />
+                  {isBusiest && (
+                    <div style={{
+                      position: "absolute", top: 3, right: 5,
+                      fontFamily: "var(--f-mono)", fontSize: 7, color: color,
+                      textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600,
+                    }}>peak</div>
+                  )}
+                </div>
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)",
+                }}>
+                  <span style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{dayNames[i]}</span>
+                  <span>{d.loadMins > 0 ? (d.loadMins >= 60 ? Math.floor(d.loadMins/60) + "h" + (d.loadMins%60>0?(d.loadMins%60)+"m":"") : d.loadMins+"m") : "·"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Summary stats — connected to calendar ── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {[
+          { label: "Tasks due", value: weekHW.length || "—", warn: false },
+          { label: "Quizzes", value: weekQuizzes.length || "—", warn: false },
+          { label: "Est. study time", value: timeStr, warn: false },
+          { label: "Urgent", value: urgentCount || "—", warn: urgentCount > 0 },
+          { label: "Busiest day", value: dayItems[busiestIdx].loadMins > 0 ? dayNames[busiestIdx] : "—", warn: false },
+        ].map((st) => (
+          <div key={st.label} style={{
+            flex: 1, padding: "10px 12px",
+            background: "var(--surface)", border: "1px solid var(--hairline)",
+            borderRadius: 8,
+            borderTop: "2px solid " + (st.warn ? "var(--accent)" : "var(--hairline)"),
+          }}>
+            <div style={{
+              fontFamily: "var(--f-display)", fontSize: 20, fontStyle: "italic",
+              color: st.warn ? "var(--accent)" : "var(--ink)", lineHeight: 1.1,
+            }}>{st.value}</div>
+            <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4 }}>
+              {st.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Day cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 28 }}>
+        {colDates.map((colDate, i) => {
+          const isToday = i === todayDayIndex;
+          const isPast = !isToday && colDate < now && isCurrentWeek;
+          const { hw, quizzes, loadMins, urgentCount: dayUrgent } = dayItems[i];
+          const hasItems = hw.length > 0 || quizzes.length > 0;
+          const daysAway = Math.round((colDate - now) / 86400000);
+          const sortedHW = [...hw].sort((a, b) => {
+            if (a.urgent && !b.urgent) return -1;
+            if (!a.urgent && b.urgent) return 1;
+            return parseEst(b.est) - parseEst(a.est);
+          });
+
+          return (
+            <div key={i} style={{
+              background: "var(--surface)",
+              border: "1px solid " + (isToday ? "var(--accent)" : "var(--hairline)"),
+              borderRadius: 10,
+              overflow: "hidden",
+              opacity: isPast ? 0.48 : 1,
+              display: "flex", flexDirection: "column",
+              minHeight: 150,
+              transition: "opacity 0.2s",
+            }}>
+              {/* Day header */}
+              <div style={{
+                padding: "10px 13px 9px",
+                borderBottom: "1px solid var(--hairline)",
+                background: isToday ? "var(--accent-soft)" : "transparent",
+                display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+              }}>
+                <div>
+                  <div style={{
+                    fontFamily: "var(--f-display)", fontSize: 18, lineHeight: 1,
+                    color: isToday ? "var(--accent)" : "var(--ink)",
+                  }}>
+                    {dayNames[i]}&nbsp;<span style={{ fontSize: 13, color: isToday ? "var(--accent)" : "var(--ink-3)" }}>{colDate.getDate()}</span>
+                  </div>
+                  <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, marginTop: 3, color: isToday ? "var(--accent)" : "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.09em" }}>
+                    {isToday ? "today" : daysAway === 1 ? "tomorrow" : daysAway > 0 && daysAway <= 4 ? daysAway + "d away" : colDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                  {hasItems && (
+                    <div style={{
+                      fontFamily: "var(--f-mono)", fontSize: 9, padding: "2px 6px",
+                      borderRadius: 4, background: "var(--bg-2)",
+                      color: dayUrgent > 0 ? "var(--accent)" : "var(--ink-3)",
+                      border: "1px solid " + (dayUrgent > 0 ? "var(--accent)" : "var(--hairline)"),
+                    }}>{hw.length + quizzes.length} item{hw.length + quizzes.length !== 1 ? "s" : ""}</div>
+                  )}
+                  {dayUrgent > 0 && (
+                    <div style={{
+                      fontFamily: "var(--f-mono)", fontSize: 8, padding: "1px 5px",
+                      borderRadius: 3, background: "rgba(224,112,96,0.12)",
+                      color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.08em",
+                    }}>⚡ urgent</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Workload bar */}
+              {hasItems && (
+                <div style={{ height: 2, background: "var(--hairline)" }}>
+                  <div style={{
+                    height: "100%",
+                    width: Math.max((loadMins / maxLoad) * 100, 12) + "%",
+                    background: heatColor(loadMins, maxLoad),
+                    opacity: 0.75,
+                  }} />
+                </div>
+              )}
+
+              {/* Items */}
+              <div style={{ padding: "10px 13px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                {!hasItems && (
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, paddingTop: 4 }}>
+                    <div style={{ fontFamily: "var(--f-display)", fontStyle: "italic", color: "var(--done)", fontSize: 12.5 }}>
+                      {isPast ? "Done" : "Clear day ✓"}
+                    </div>
+                    {!isPast && (
+                      <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", lineHeight: 1.45, opacity: 0.8 }}>
+                        {emptyDayCopy[i % emptyDayCopy.length]}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {sortedHW.map((h) => {
+                  const s = subjectBy(h.subject);
+                  const uc = urgencyColor(h);
+                  const est = parseEst(h.est);
+                  return (
+                    <div key={h.id}
+                      onClick={() => window.location.hash = "#/homework/" + h.id}
+                      style={{
+                        display: "flex", flexDirection: "column", gap: 4,
+                        cursor: "pointer", padding: "5px 8px",
+                        background: "var(--bg-2)", borderRadius: 6,
+                        borderLeft: "2px solid " + uc,
+                      }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.3, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.title}</div>
+                      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                        <span style={{ width: 5, height: 5, borderRadius: 1.5, background: s.color, flexShrink: 0 }}/>
+                        <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>{s.short}</span>
+                        {h.est && (
+                          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", background: "var(--bg)", padding: "0 4px", borderRadius: 3 }}>{h.est}</span>
+                        )}
+                        {h.urgent && (
+                          <span style={{ fontFamily: "var(--f-mono)", fontSize: 8.5, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>urgent</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {quizzes.map((q) => {
+                  const s = subjectBy(q.subject);
+                  return (
+                    <div key={q.id}
+                      onClick={() => window.location.hash = "#/quiz-detail/" + q.id}
+                      style={{
+                        display: "flex", flexDirection: "column", gap: 4,
+                        cursor: "pointer", padding: "5px 8px",
+                        background: "var(--bg-2)", borderRadius: 6,
+                        borderLeft: "2px solid var(--plum)",
+                      }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.3, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</div>
+                      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                        <span style={{ width: 5, height: 5, borderRadius: 1.5, background: s.color, flexShrink: 0 }}/>
+                        <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>{s.short}</span>
+                        <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--plum)", background: "var(--bg)", padding: "0 4px", borderRadius: 3 }}>quiz</span>
+                        {q.confidence != null && (
+                          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)" }}>{Math.round(q.confidence * 100)}% conf</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {totalItems === 0 && (
+        <div style={{
+          textAlign: "center", padding: "22px 0 32px",
+          background: "var(--surface)", border: "1px solid var(--hairline)",
+          borderRadius: 10, marginBottom: 24,
+        }}>
+          <div style={{ fontFamily: "var(--f-display)", fontStyle: "italic", color: "var(--ink-2)", fontSize: 16, marginBottom: 6 }}>
+            Nothing due this week.
+          </div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 11, color: "var(--ink-3)" }}>
+            Add homework or quizzes and they'll appear here.
+          </div>
+        </div>
+      )}
+
+      {/* ── Focus timer ── */}
+      <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>
+        Focus timer
+      </div>
+      <PomodoroTimer />
+    </>
+  );
+}
+
 
 // ─────────────── Grades view
 
