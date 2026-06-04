@@ -1755,56 +1755,95 @@ ${content.slice(0, 2000)}`;
 
 
 
-// ─────────────── Tools Dashboard ─────────────────────────────────────────────
+// ─────────────── Tools Dashboard — Linear/Raycast redesign ───────────────────
 
 const TOOLS_DATA = [
   {
+    id: "claude",     name: "Claude",      category: "AI",
+    desc: "Write, code, analyze, and reason — Anthropic's frontier AI.",
+    url: "https://claude.ai",     color: "#d97757",
+    shortcut: "C", tags: ["writing", "code", "reasoning"],
+    stat: { sessions: 142, lastUsed: "2m ago", trend: "+12%" },
+  },
+  {
     id: "figma",      name: "Figma",       category: "Design",
-    desc: "Design and prototype interfaces in real time with your team.",
+    desc: "Design and prototype interfaces collaboratively in real time.",
     url: "https://figma.com",     color: "#7c5cfc",
+    shortcut: "F", tags: ["design", "prototype", "ui"],
+    stat: { sessions: 89, lastUsed: "1h ago", trend: "+5%" },
   },
   {
     id: "notebooklm", name: "NotebookLM",  category: "AI",
-    desc: "Upload your notes and lecture slides, then ask an AI anything about them.",
+    desc: "Upload your notes and lecture slides — ask AI anything about them.",
     url: "https://notebooklm.google.com", color: "#4285f4",
-  },
-  {
-    id: "notion",     name: "Notion",      category: "Productivity",
-    desc: "All-in-one workspace for notes, wikis, and project management.",
-    url: "https://notion.so",     color: "#a0a0a0",
+    shortcut: "N", tags: ["notes", "research", "study"],
+    stat: { sessions: 67, lastUsed: "3h ago", trend: "+8%" },
   },
   {
     id: "canva",      name: "Canva",       category: "Design",
-    desc: "Create posters, presentations, and graphics with drag-and-drop ease.",
+    desc: "Create posters, presentations, and graphics with drag-and-drop.",
     url: "https://canva.com",     color: "#00c4cc",
-  },
-  {
-    id: "claude",     name: "Claude",      category: "AI",
-    desc: "Write, code, analyze, and reason with Anthropic's AI assistant.",
-    url: "https://claude.ai",     color: "#d97757",
+    shortcut: "V", tags: ["graphics", "poster", "slides"],
+    stat: { sessions: 34, lastUsed: "Yesterday", trend: "-2%" },
   },
   {
     id: "gemini",     name: "Gemini",      category: "AI",
     desc: "Google's multimodal AI for research, writing, and complex tasks.",
     url: "https://gemini.google.com", color: "#4f8ef7",
+    shortcut: "G", tags: ["research", "writing", "multimodal"],
+    stat: { sessions: 28, lastUsed: "2d ago", trend: "new" },
+  },
+  {
+    id: "notion",     name: "Notion",      category: "Productivity",
+    desc: "All-in-one workspace for notes, wikis, and project management.",
+    url: "https://notion.so",     color: "#a0a0a0",
+    shortcut: "O", tags: ["notes", "wiki", "tasks"],
+    stat: { sessions: 201, lastUsed: "4h ago", trend: "+3%" },
   },
   {
     id: "webflow",    name: "Webflow",     category: "Design",
     desc: "Build production-ready websites visually — no code required.",
     url: "https://webflow.com",   color: "#4353ff",
+    shortcut: "W", tags: ["website", "cms", "no-code"],
+    stat: { sessions: 12, lastUsed: "3d ago", trend: "new" },
   },
   {
     id: "zapier",     name: "Zapier",      category: "Productivity",
     desc: "Automate repetitive tasks by connecting your apps and workflows.",
     url: "https://zapier.com",    color: "#ff4f00",
+    shortcut: "Z", tags: ["automation", "workflow", "apps"],
+    stat: { sessions: 45, lastUsed: "1d ago", trend: "+18%" },
   },
 ];
 
-function ToolIcon({ id, color }) {
+const QUICK_ACTIONS = [
+  { label: "Ask Claude a question", shortcut: "⌘1", tool: "claude",     desc: "Open Claude AI" },
+  { label: "New Figma file",        shortcut: "⌘2", tool: "figma",      desc: "Open Figma" },
+  { label: "Open NotebookLM",       shortcut: "⌘3", tool: "notebooklm", desc: "Study with AI" },
+  { label: "New Notion page",       shortcut: "⌘4", tool: "notion",     desc: "Open Notion" },
+];
+
+const ACTIVITY_LOG = [
+  { tool: "claude",     action: "Opened for essay help",         time: "2m ago" },
+  { tool: "notion",     action: "Edited Physics notes page",      time: "4h ago" },
+  { tool: "figma",      action: "Opened UI project",             time: "1h ago" },
+  { tool: "notebooklm", action: "Uploaded AP Bio lecture PDF",   time: "3h ago" },
+  { tool: "zapier",     action: "Homework reminder automation",  time: "1d ago" },
+  { tool: "canva",      action: "Created poster for class",      time: "Yesterday" },
+];
+
+const AI_SUGGESTIONS = [
+  { tool: "notebooklm", reason: "Quiz coming up — upload your notes to study smarter", priority: "high" },
+  { tool: "claude",     reason: "3 homework items open — get writing help now",        priority: "medium" },
+  { tool: "zapier",     reason: "Set up homework deadline reminders automatically",   priority: "low" },
+];
+
+function ToolIconSm({ id, color, size = 18 }) {
   const p = { fill: "none", stroke: color, strokeLinecap: "round", strokeLinejoin: "round" };
+  const s = size;
   switch (id) {
     case "figma": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <rect x="5" y="3" width="7" height="7" rx="3.5"/>
         <rect x="12" y="3" width="7" height="7" rx="3.5"/>
         <rect x="5" y="10" width="7" height="7" rx="3.5"/>
@@ -1813,27 +1852,26 @@ function ToolIcon({ id, color }) {
       </svg>
     );
     case "notebooklm": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <rect x="4" y="3" width="13" height="16" rx="1.5"/>
         <path d="M4 7h13M7 3v4"/>
         <path d="M8.5 12.5l1.5 1.5 2.5-3" strokeWidth="1.8"/>
-        <path d="M19 2l1 2.5 2.5 1-2.5 1L19 9l-1-2.5-2.5-1 2.5-1z" fill={color + "30"} strokeWidth="1.2"/>
       </svg>
     );
     case "notion": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <rect x="4" y="3" width="16" height="18" rx="2" fill={color + "18"}/>
         <path d="M8 7v10M8 7l8 10M8 7h5" strokeWidth="2"/>
       </svg>
     );
     case "canva": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <circle cx="12" cy="12" r="9"/>
         <path d="M9 15c1.2 1.8 3.6 2.3 5.3 1.2 1.7-1.1 2.5-3.5 1.6-5.7C15 8.3 12.5 7 10.2 8S7.3 11.8 8.5 14" strokeWidth="2"/>
       </svg>
     );
     case "claude": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <circle cx="12" cy="12" r="4" fill={color + "25"}/>
         <line x1="12" y1="2" x2="12" y2="6"/>
         <line x1="12" y1="18" x2="12" y2="22"/>
@@ -1846,135 +1884,484 @@ function ToolIcon({ id, color }) {
       </svg>
     );
     case "gemini": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <path d="M12 2 C12 7.5 16.5 12 22 12 C16.5 12 12 16.5 12 22 C12 16.5 7.5 12 2 12 C7.5 12 12 7.5 12 2 Z" fill={color + "25"} stroke={color} strokeWidth="1.4"/>
       </svg>
     );
     case "webflow": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="2">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="2">
         <path d="M2 9l5 9 3-5.5 2.5 4L16 7l4.5 8.5"/>
       </svg>
     );
     case "zapier": return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5">
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5">
         <circle cx="12" cy="12" r="9" fill={color + "18"}/>
         <path d="M8 8h8l-8 8h8" strokeWidth="2"/>
       </svg>
     );
     default: return (
-      <svg width="26" height="26" viewBox="0 0 24 24" {...p} strokeWidth="1.5"><circle cx="12" cy="12" r="8"/></svg>
+      <svg width={s} height={s} viewBox="0 0 24 24" {...p} strokeWidth="1.5"><circle cx="12" cy="12" r="8"/></svg>
     );
   }
 }
 
-function ToolCard({ tool }) {
+// ── Command Palette ──
+function CommandPalette({ tools, onClose }) {
+  const [query, setQuery] = React.useState("");
+  const [selected, setSelected] = React.useState(0);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => { inputRef.current && inputRef.current.focus(); }, []);
+
+  const results = React.useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return tools;
+    return tools.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.category.toLowerCase().includes(q) ||
+      (t.tags || []).some(tag => tag.includes(q))
+    );
+  }, [query, tools]);
+
+  React.useEffect(() => { setSelected(0); }, [results]);
+
+  const handleKey = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setSelected(s => Math.min(s + 1, results.length - 1)); }
+    if (e.key === "ArrowUp")   { e.preventDefault(); setSelected(s => Math.max(s - 1, 0)); }
+    if (e.key === "Enter" && results[selected]) { window.open(results[selected].url, "_blank"); onClose(); }
+    if (e.key === "Escape") onClose();
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(0,0,0,0.72)",
+      display: "flex", alignItems: "flex-start", justifyContent: "center",
+      paddingTop: "14vh",
+      backdropFilter: "blur(4px)",
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        width: 560, background: "var(--surface)", borderRadius: 12,
+        border: "1px solid var(--rule)",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
+        overflow: "hidden",
+      }}>
+        {/* Search input */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--hairline)" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--ink-3)" strokeWidth="1.5">
+            <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+          </svg>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Search tools, categories, or tags…"
+            style={{
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              color: "var(--ink)", fontFamily: "var(--f-ui)", fontSize: 15,
+            }}
+          />
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 4, padding: "2px 6px" }}>ESC</span>
+        </div>
+
+        {/* Results */}
+        <div style={{ maxHeight: 340, overflowY: "auto" }}>
+          {results.length === 0 && (
+            <div style={{ padding: "24px 20px", fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-3)", textAlign: "center" }}>
+              No tools match "{query}"
+            </div>
+          )}
+          {results.map((t, i) => (
+            <a key={t.id} href={t.url} target="_blank" rel="noopener noreferrer"
+              onClick={onClose}
+              onMouseEnter={() => setSelected(i)}
+              style={{
+                display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
+                textDecoration: "none", color: "inherit",
+                background: i === selected ? "var(--highlight)" : "transparent",
+                borderLeft: i === selected ? "2px solid " + t.color : "2px solid transparent",
+                transition: "background 0.08s",
+              }}>
+              <div style={{ width: 30, height: 30, borderRadius: 7, background: t.color + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ToolIconSm id={t.id} color={t.color} size={16} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500 }}>{t.name}</div>
+                <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.desc}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{t.category}</span>
+                <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)" }}>↵</span>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "10px 18px", borderTop: "1px solid var(--hairline)", display: "flex", gap: 18, alignItems: "center" }}>
+          {[["↵", "Open"], ["↑↓", "Navigate"], ["ESC", "Close"]].map(([key, label]) => (
+            <span key={key} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>
+              <span style={{ background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{key}</span>
+              {label}
+            </span>
+          ))}
+          <span style={{ marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>{results.length} result{results.length !== 1 ? "s" : ""}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Compact tool card (Linear-style) ──
+function ToolCardCompact({ tool, index }) {
   const [hovered, setHovered] = React.useState(false);
+  const trendUp = tool.stat.trend.startsWith("+");
+  const trendNew = tool.stat.trend === "new";
+  const trendColor = trendNew ? "var(--info)" : trendUp ? "var(--done)" : "var(--accent)";
+
   return (
     <a
-      className="tool-card"
       href={tool.url}
       target="_blank"
       rel="noopener noreferrer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: "flex", flexDirection: "column", gap: 14,
-        padding: "20px 20px 16px",
-        background: hovered ? "var(--surface)" : "var(--bg-2)",
-        border: "1px solid " + (hovered ? tool.color + "55" : "var(--hairline)"),
-        borderRadius: 10, textDecoration: "none", color: "inherit",
-        transition: "border-color 0.18s, background 0.18s",
-        position: "relative", overflow: "hidden",
+        display: "grid",
+        gridTemplateColumns: "36px 1fr auto",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        background: hovered ? "var(--highlight)" : "transparent",
+        borderBottom: "1px solid var(--hairline)",
+        borderLeft: hovered ? "2px solid " + tool.color : "2px solid transparent",
+        textDecoration: "none", color: "inherit",
+        transition: "background 0.1s, border-color 0.1s",
         cursor: "pointer",
+        position: "relative",
       }}
     >
-      {/* Top accent line */}
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0, height: 2,
-        background: tool.color,
-        opacity: hovered ? 1 : 0.5,
-        transition: "opacity 0.18s",
-      }} />
-
       {/* Icon */}
       <div style={{
-        width: 44, height: 44, borderRadius: 10,
-        background: tool.color + "18",
+        width: 34, height: 34, borderRadius: 8,
+        background: hovered ? tool.color + "28" : tool.color + "16",
         display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
+        flexShrink: 0, transition: "background 0.1s",
       }}>
-        <ToolIcon id={tool.id} color={tool.color} />
+        <ToolIconSm id={tool.id} color={tool.color} size={17} />
       </div>
 
-      {/* Name + category */}
-      <div>
-        <div style={{ fontFamily: "var(--f-display)", fontSize: 18, lineHeight: 1, color: "var(--ink)" }}>{tool.name}</div>
-        <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em", marginTop: 4 }}>{tool.category}</div>
+      {/* Name + desc */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>{tool.name}</span>
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tool.category}</span>
+          {index < 3 && <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: trendNew ? "var(--info)" : "var(--done)", background: trendNew ? "var(--info)" + "18" : "var(--done-soft)", border: "1px solid " + (trendNew ? "var(--info)" : "var(--done)") + "40", borderRadius: 3, padding: "1px 5px" }}>{trendNew ? "NEW" : "TOP"}</span>}
+        </div>
+        <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tool.desc}</div>
       </div>
 
-      {/* Description */}
-      <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55, flex: 1 }}>{tool.desc}</div>
-
-      {/* Open link */}
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 5 }}>
-        <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: hovered ? tool.color : "var(--ink-3)", transition: "color 0.18s" }}>
-          Open {hovered ? "→" : "↗"}
-        </span>
+      {/* Stats */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-2)", fontWeight: 600 }}>{tool.stat.sessions}</div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>sessions</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-2)" }}>{tool.stat.lastUsed}</div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>last used</div>
+        </div>
+        <div style={{
+          fontFamily: "var(--f-mono)", fontSize: 10.5,
+          color: trendColor,
+          background: trendColor + "15",
+          border: "1px solid " + trendColor + "35",
+          borderRadius: 4, padding: "2px 7px", minWidth: 44, textAlign: "center",
+        }}>{trendNew ? "new" : tool.stat.trend}</div>
+        {hovered && (
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: tool.color }}>Open ↗</span>
+        )}
       </div>
     </a>
   );
 }
 
 function ToolsContent() {
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [filter, setFilter] = React.useState("All");
+  const [view, setView] = React.useState("list"); // "list" | "grid"
+
   const categories = ["All", "AI", "Design", "Productivity"];
   const filtered = filter === "All" ? TOOLS_DATA : TOOLS_DATA.filter(t => t.category === filter);
 
-  const catCounts = {};
-  categories.forEach(c => {
-    catCounts[c] = c === "All" ? TOOLS_DATA.length : TOOLS_DATA.filter(t => t.category === c).length;
-  });
+  // Global keyboard shortcut for command palette
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setPaletteOpen(v => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const totalSessions = TOOLS_DATA.reduce((s, t) => s + t.stat.sessions, 0);
+  const topTool = TOOLS_DATA.reduce((a, b) => a.stat.sessions > b.stat.sessions ? a : b);
+  const aiTools = TOOLS_DATA.filter(t => t.category === "AI").length;
 
   return (
     <>
-      <PageHeader
-        eyebrow={"AI & design tools · " + TOOLS_DATA.length + " connected"}
-        title="Your"
-        italic="toolkit."
-        meta="Quick-launch your favorite AI, design, and productivity tools."
-      />
+      {paletteOpen && <CommandPalette tools={TOOLS_DATA} onClose={() => setPaletteOpen(false)} />}
 
-      {/* Category filter strip */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 20,
-              border: filter === cat ? "1px solid var(--accent)" : "1px solid var(--hairline)",
-              background: filter === cat ? "var(--accent-soft)" : "transparent",
-              color: filter === cat ? "var(--accent-ink)" : "var(--ink-3)",
-              fontFamily: "var(--f-mono)", fontSize: 10.5,
-              textTransform: "uppercase", letterSpacing: "0.08em",
-              cursor: "pointer", transition: "all 0.15s",
-              display: "flex", alignItems: "center", gap: 6,
-            }}
-          >
-            {cat}
-            <span style={{ opacity: 0.6, fontSize: 10 }}>{catCounts[cat]}</span>
-          </button>
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+          Tools · {TOOLS_DATA.length} connected · {aiTools} AI
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <h1 style={{ fontFamily: "var(--f-display)", fontSize: 28, margin: 0, fontWeight: 400, letterSpacing: "-0.02em" }}>
+            Your <em style={{ color: "var(--accent-ink)" }}>toolkit</em>
+          </h1>
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* View toggle */}
+            <div style={{ display: "flex", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 6, padding: 2, gap: 2 }}>
+              {[["list", "≡"], ["grid", "⊞"]].map(([v, icon]) => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  width: 28, height: 24, borderRadius: 4, border: "none",
+                  background: view === v ? "var(--surface)" : "transparent",
+                  color: view === v ? "var(--ink)" : "var(--ink-3)",
+                  cursor: "pointer", fontSize: 14, display: "grid", placeItems: "center",
+                  boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.18)" : "none",
+                  transition: "all 0.1s",
+                }}>{icon}</button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPaletteOpen(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "8px 14px",
+                background: "var(--surface)", border: "1px solid var(--rule)",
+                borderRadius: 8, cursor: "pointer", color: "var(--ink-2)",
+                fontFamily: "var(--f-ui)", fontSize: 13,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+                transition: "border-color 0.1s",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+              <span>Search tools…</span>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 4, padding: "1px 6px" }}>⌘K</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats bar ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 18 }}>
+        {[
+          { label: "Total sessions", value: totalSessions, sub: "all tools" },
+          { label: "Most used", value: topTool.name, sub: topTool.stat.sessions + " sessions", color: topTool.color },
+          { label: "Tools active", value: TOOLS_DATA.length, sub: aiTools + " AI · " + (TOOLS_DATA.length - aiTools) + " other" },
+          { label: "Last opened", value: "Claude", sub: "2m ago", color: "#d97757" },
+        ].map((s, i) => (
+          <div key={i} style={{
+            padding: "12px 14px", background: "var(--surface)",
+            border: "1px solid var(--hairline)", borderRadius: 8,
+          }}>
+            <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: s.color || "var(--ink)", fontFamily: "var(--f-display)", lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>{s.sub}</div>
+          </div>
         ))}
       </div>
 
-      {/* Grid */}
-      <div className="tools-grid" style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-        gap: 14,
-      }}>
-        {filtered.map(tool => <ToolCard key={tool.id} tool={tool} />)}
+      {/* ── Two-column layout ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
+
+        {/* LEFT — main tools list/grid */}
+        <div>
+          {/* AI Suggestions */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>✦ AI Suggestions</span>
+              <div style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
+            </div>
+            {AI_SUGGESTIONS.map((s, i) => {
+              const tool = TOOLS_DATA.find(t => t.id === s.tool);
+              const pColor = s.priority === "high" ? "var(--accent)" : s.priority === "medium" ? "var(--info)" : "var(--ink-3)";
+              return (
+                <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
+                    marginBottom: 4, background: "var(--bg-2)", border: "1px solid var(--hairline)",
+                    borderRadius: 7, textDecoration: "none", color: "inherit",
+                    borderLeft: "3px solid " + pColor,
+                    transition: "background 0.1s",
+                  }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 6, background: tool.color + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <ToolIconSm id={tool.id} color={tool.color} size={14} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>{tool.name}</div>
+                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 1 }}>{s.reason}</div>
+                  </div>
+                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: pColor, textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.priority}</span>
+                </a>
+              );
+            })}
+          </div>
+
+          {/* Filter bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            {categories.map(cat => {
+              const count = cat === "All" ? TOOLS_DATA.length : TOOLS_DATA.filter(t => t.category === cat).length;
+              const active = filter === cat;
+              return (
+                <button key={cat} onClick={() => setFilter(cat)} style={{
+                  padding: "4px 10px", borderRadius: 5,
+                  border: "1px solid " + (active ? "var(--ink-2)" : "var(--hairline)"),
+                  background: active ? "var(--surface)" : "transparent",
+                  color: active ? "var(--ink)" : "var(--ink-3)",
+                  fontFamily: "var(--f-mono)", fontSize: 10.5,
+                  cursor: "pointer", transition: "all 0.1s",
+                  display: "flex", alignItems: "center", gap: 5,
+                  boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                }}>
+                  {cat}
+                  <span style={{ opacity: 0.55, fontSize: 9.5 }}>{count}</span>
+                </button>
+              );
+            })}
+            <div style={{ marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>
+              {filtered.length} tool{filtered.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+
+          {/* Tool list or grid */}
+          {view === "list" ? (
+            <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, overflow: "hidden" }}>
+              {filtered.map((tool, i) => (
+                <ToolCardCompact key={tool.id} tool={tool} index={i} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+              {filtered.map(tool => {
+                const [hov, setHov] = React.useState(false);
+                return (
+                  <a key={tool.id} href={tool.url} target="_blank" rel="noopener noreferrer"
+                    onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+                    style={{
+                      display: "flex", flexDirection: "column", gap: 10, padding: "14px",
+                      background: hov ? "var(--highlight)" : "var(--surface)",
+                      border: "1px solid " + (hov ? tool.color + "55" : "var(--hairline)"),
+                      borderRadius: 10, textDecoration: "none", color: "inherit",
+                      transition: "all 0.12s",
+                    }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: tool.color + "20", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ToolIconSm id={tool.id} color={tool.color} size={18} />
+                      </div>
+                      <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{tool.shortcut}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 500 }}>{tool.name}</div>
+                      <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 2 }}>{tool.category}</div>
+                    </div>
+                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", display: "flex", justifyContent: "space-between" }}>
+                      <span>{tool.stat.sessions} sessions</span>
+                      <span>{tool.stat.lastUsed}</span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT — sidebar: quick actions + activity */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Quick Actions */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Quick Actions</span>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>⌘1–4</span>
+            </div>
+            {QUICK_ACTIONS.map((action, i) => {
+              const tool = TOOLS_DATA.find(t => t.id === action.tool);
+              return (
+                <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
+                    borderBottom: i < QUICK_ACTIONS.length - 1 ? "1px solid var(--hairline)" : "none",
+                    textDecoration: "none", color: "inherit",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--bg-2)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <div style={{ width: 26, height: 26, borderRadius: 6, background: tool.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <ToolIconSm id={tool.id} color={tool.color} size={13} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{action.label}</div>
+                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 1 }}>{action.desc}</div>
+                  </div>
+                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{action.shortcut}</span>
+                </a>
+              );
+            })}
+          </div>
+
+          {/* Recent Activity */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Recent Activity</span>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>last 7 days</span>
+            </div>
+            {ACTIVITY_LOG.map((entry, i) => {
+              const tool = TOOLS_DATA.find(t => t.id === entry.tool);
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 14px",
+                  borderBottom: i < ACTIVITY_LOG.length - 1 ? "1px solid var(--hairline)" : "none",
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: tool.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.action}</div>
+                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 1 }}>{tool.name}</div>
+                  </div>
+                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", flexShrink: 0 }}>{entry.time}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Usage breakdown */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, padding: "12px 14px" }}>
+            <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>Usage by tool</div>
+            {[...TOOLS_DATA].sort((a, b) => b.stat.sessions - a.stat.sessions).map((tool, i) => {
+              const pct = Math.round(tool.stat.sessions / totalSessions * 100);
+              return (
+                <div key={tool.id} style={{ display: "grid", gridTemplateColumns: "20px 1fr 36px", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: tool.color, margin: "0 auto" }} />
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 500 }}>{tool.name}</span>
+                      <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>{tool.stat.sessions}</span>
+                    </div>
+                    <div style={{ height: 3, background: "var(--hairline)", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: pct + "%", background: tool.color, borderRadius: 2, transition: "width 0.5s ease" }} />
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textAlign: "right" }}>{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </>
   );
