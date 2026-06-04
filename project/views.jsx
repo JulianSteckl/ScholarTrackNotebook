@@ -1755,87 +1755,231 @@ ${content.slice(0, 2000)}`;
 
 
 
-// ─────────────── Tools Dashboard — Linear/Raycast redesign ───────────────────
+// ─────────────── Tools Dashboard — Elevated ──────────────────────────────────
 
+// Inject CSS for micro-interactions and animations
+function ToolsStyleBlock() {
+  return (
+    <style>{`
+      @keyframes tl-fade-up {
+        from { opacity: 0; transform: translateY(5px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes tl-pulse-ring {
+        0%   { box-shadow: 0 0 0 0 var(--ring-color, rgba(112,192,122,0.5)); }
+        70%  { box-shadow: 0 0 0 5px transparent; }
+        100% { box-shadow: 0 0 0 0 transparent; }
+      }
+      @keyframes tl-dot-blink {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.35; }
+      }
+      .tl-tool-row {
+        transition: background 0.1s ease, border-left-color 0.12s ease;
+        animation: tl-fade-up 0.16s ease both;
+      }
+      .tl-tool-row:hover { background: var(--highlight) !important; }
+      .tl-sugg-card {
+        transition: background 0.1s ease, transform 0.12s ease;
+        animation: tl-fade-up 0.2s ease both;
+      }
+      .tl-sugg-card:hover { transform: translateX(2px); }
+      .tl-act-row { transition: background 0.08s ease; }
+      .tl-act-row:hover { background: var(--bg-2) !important; }
+      .tl-palette-item { transition: background 0.06s ease; }
+      .tl-stat-card { transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+      .tl-stat-card:hover { border-color: var(--rule) !important; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+      .tl-live-dot { animation: tl-pulse-ring 2.2s cubic-bezier(0.4,0,0.6,1) infinite; }
+      .tl-blink     { animation: tl-dot-blink 1.6s ease infinite; }
+      .tl-grid-card { transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.14s ease; }
+      .tl-grid-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.18) !important; }
+    `}</style>
+  );
+}
+
+// 7-day sparkline bar chart
+function Sparkline({ data, color, width = 52, height = 22 }) {
+  const max = Math.max(...data, 1);
+  const n = data.length;
+  const gap = 2;
+  const barW = Math.max(1, Math.floor((width - (n - 1) * gap) / n));
+  return (
+    <svg width={width} height={height} style={{ display: "block", flexShrink: 0 }}>
+      {data.map((v, i) => {
+        const h = v === 0 ? 2 : Math.max(3, Math.round((v / max) * height));
+        const alpha = v === 0 ? 0.12 : 0.25 + (i / (n - 1)) * 0.75;
+        return (
+          <rect
+            key={i}
+            x={i * (barW + gap)}
+            y={height - h}
+            width={barW}
+            height={h}
+            rx={1.5}
+            fill={v === 0 ? "var(--hairline)" : color}
+            opacity={v === 0 ? 1 : alpha}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+// Streak flame indicator
+function StreakBadge({ count, color }) {
+  if (!count || count < 2) return null;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 3,
+      fontFamily: "var(--f-mono)", fontSize: 9.5,
+      color, background: color + "15",
+      border: "1px solid " + color + "30",
+      borderRadius: 3, padding: "1px 5px",
+    }}>
+      <svg width="8" height="9" viewBox="0 0 10 12" fill={color}>
+        <path d="M5 0c.4 1-.2 1.8-.5 2.4-.4.8.2 1.2.5.8.2-.3.3-.7.5-1 .3.6 1.2 1.5 1.2 2.6 0 1.4-1.2 2.6-1.5 2.6-.4 0-.5-.6-1-.9-.7-.4-.9-1.3-.2-1.8-.3 1.2.6 1.5.9.9.4-.8-.6-1.2-.8-2.1C3.8 2.7 5 1.7 5 0z"/>
+      </svg>
+      {count}d
+    </span>
+  );
+}
+
+// Status dot with meaning
+function StatusDot({ status, color }) {
+  const cfg = {
+    active:   { bg: "var(--done)",   label: "Active",   pulse: true  },
+    trending: { bg: "var(--info)",   label: "Trending", pulse: false },
+    new:      { bg: "var(--info)",   label: "New",      pulse: false },
+    idle:     { bg: "var(--ink-3)",  label: "Idle",     pulse: false },
+  }[status] || { bg: "var(--hairline)", label: "", pulse: false };
+
+  return (
+    <span
+      className={cfg.pulse ? "tl-live-dot" : ""}
+      style={{
+        display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+        background: cfg.bg, flexShrink: 0,
+        "--ring-color": cfg.pulse ? "rgba(112,192,122,0.45)" : "transparent",
+      }}
+      title={cfg.label}
+    />
+  );
+}
+
+// Enhanced tool data
 const TOOLS_DATA = [
   {
     id: "claude",     name: "Claude",      category: "AI",
     desc: "Write, code, analyze, and reason — Anthropic's frontier AI.",
     url: "https://claude.ai",     color: "#d97757",
     shortcut: "C", tags: ["writing", "code", "reasoning"],
-    stat: { sessions: 142, lastUsed: "2m ago", trend: "+12%" },
-  },
-  {
-    id: "figma",      name: "Figma",       category: "Design",
-    desc: "Design and prototype interfaces collaboratively in real time.",
-    url: "https://figma.com",     color: "#7c5cfc",
-    shortcut: "F", tags: ["design", "prototype", "ui"],
-    stat: { sessions: 89, lastUsed: "1h ago", trend: "+5%" },
-  },
-  {
-    id: "notebooklm", name: "NotebookLM",  category: "AI",
-    desc: "Upload your notes and lecture slides — ask AI anything about them.",
-    url: "https://notebooklm.google.com", color: "#4285f4",
-    shortcut: "N", tags: ["notes", "research", "study"],
-    stat: { sessions: 67, lastUsed: "3h ago", trend: "+8%" },
-  },
-  {
-    id: "canva",      name: "Canva",       category: "Design",
-    desc: "Create posters, presentations, and graphics with drag-and-drop.",
-    url: "https://canva.com",     color: "#00c4cc",
-    shortcut: "V", tags: ["graphics", "poster", "slides"],
-    stat: { sessions: 34, lastUsed: "Yesterday", trend: "-2%" },
-  },
-  {
-    id: "gemini",     name: "Gemini",      category: "AI",
-    desc: "Google's multimodal AI for research, writing, and complex tasks.",
-    url: "https://gemini.google.com", color: "#4f8ef7",
-    shortcut: "G", tags: ["research", "writing", "multimodal"],
-    stat: { sessions: 28, lastUsed: "2d ago", trend: "new" },
+    stat: { sessions: 142, lastUsed: "2m ago", trend: "+12%", streak: 7, weekSessions: 38, prevWeek: 34 },
+    sparkline: [8, 12, 6, 15, 11, 18, 22],
+    status: "active",
   },
   {
     id: "notion",     name: "Notion",      category: "Productivity",
     desc: "All-in-one workspace for notes, wikis, and project management.",
     url: "https://notion.so",     color: "#a0a0a0",
     shortcut: "O", tags: ["notes", "wiki", "tasks"],
-    stat: { sessions: 201, lastUsed: "4h ago", trend: "+3%" },
+    stat: { sessions: 201, lastUsed: "4h ago", trend: "+3%", streak: 12, weekSessions: 42, prevWeek: 40 },
+    sparkline: [18, 14, 20, 16, 22, 18, 24],
+    status: "trending",
   },
   {
-    id: "webflow",    name: "Webflow",     category: "Design",
-    desc: "Build production-ready websites visually — no code required.",
-    url: "https://webflow.com",   color: "#4353ff",
-    shortcut: "W", tags: ["website", "cms", "no-code"],
-    stat: { sessions: 12, lastUsed: "3d ago", trend: "new" },
+    id: "figma",      name: "Figma",       category: "Design",
+    desc: "Design and prototype interfaces collaboratively in real time.",
+    url: "https://figma.com",     color: "#7c5cfc",
+    shortcut: "F", tags: ["design", "prototype", "ui"],
+    stat: { sessions: 89, lastUsed: "1h ago", trend: "+5%", streak: 4, weekSessions: 22, prevWeek: 21 },
+    sparkline: [10, 8, 14, 12, 9, 16, 14],
+    status: "active",
+  },
+  {
+    id: "notebooklm", name: "NotebookLM",  category: "AI",
+    desc: "Upload your notes and lecture slides — ask AI anything about them.",
+    url: "https://notebooklm.google.com", color: "#4285f4",
+    shortcut: "N", tags: ["notes", "research", "study"],
+    stat: { sessions: 67, lastUsed: "3h ago", trend: "+8%", streak: 3, weekSessions: 18, prevWeek: 14 },
+    sparkline: [4, 6, 8, 5, 10, 12, 14],
+    status: "trending",
   },
   {
     id: "zapier",     name: "Zapier",      category: "Productivity",
     desc: "Automate repetitive tasks by connecting your apps and workflows.",
     url: "https://zapier.com",    color: "#ff4f00",
     shortcut: "Z", tags: ["automation", "workflow", "apps"],
-    stat: { sessions: 45, lastUsed: "1d ago", trend: "+18%" },
+    stat: { sessions: 45, lastUsed: "1d ago", trend: "+18%", streak: 2, weekSessions: 12, prevWeek: 8 },
+    sparkline: [3, 5, 4, 7, 8, 6, 10],
+    status: "trending",
+  },
+  {
+    id: "canva",      name: "Canva",       category: "Design",
+    desc: "Create posters, presentations, and graphics with drag-and-drop.",
+    url: "https://canva.com",     color: "#00c4cc",
+    shortcut: "V", tags: ["graphics", "poster", "slides"],
+    stat: { sessions: 34, lastUsed: "Yesterday", trend: "-2%", streak: 0, weekSessions: 6, prevWeek: 8 },
+    sparkline: [6, 4, 8, 3, 2, 4, 3],
+    status: "idle",
+  },
+  {
+    id: "gemini",     name: "Gemini",      category: "AI",
+    desc: "Google's multimodal AI for research, writing, and complex tasks.",
+    url: "https://gemini.google.com", color: "#4f8ef7",
+    shortcut: "G", tags: ["research", "writing", "multimodal"],
+    stat: { sessions: 28, lastUsed: "2d ago", trend: "new", streak: 0, weekSessions: 8, prevWeek: 0 },
+    sparkline: [0, 0, 2, 4, 3, 6, 8],
+    status: "new",
+  },
+  {
+    id: "webflow",    name: "Webflow",     category: "Design",
+    desc: "Build production-ready websites visually — no code required.",
+    url: "https://webflow.com",   color: "#4353ff",
+    shortcut: "W", tags: ["website", "cms", "no-code"],
+    stat: { sessions: 12, lastUsed: "3d ago", trend: "new", streak: 0, weekSessions: 3, prevWeek: 0 },
+    sparkline: [0, 2, 1, 3, 2, 1, 4],
+    status: "new",
   },
 ];
 
 const QUICK_ACTIONS = [
-  { label: "Ask Claude a question", shortcut: "⌘1", tool: "claude",     desc: "Open Claude AI" },
-  { label: "New Figma file",        shortcut: "⌘2", tool: "figma",      desc: "Open Figma" },
-  { label: "Open NotebookLM",       shortcut: "⌘3", tool: "notebooklm", desc: "Study with AI" },
-  { label: "New Notion page",       shortcut: "⌘4", tool: "notion",     desc: "Open Notion" },
+  { label: "Ask Claude a question", shortcut: "⌘1", tool: "claude",     desc: "Start a new conversation" },
+  { label: "New Figma file",        shortcut: "⌘2", tool: "figma",      desc: "Open design canvas" },
+  { label: "Open NotebookLM",       shortcut: "⌘3", tool: "notebooklm", desc: "Study from your notes" },
+  { label: "New Notion page",       shortcut: "⌘4", tool: "notion",     desc: "Capture or organize" },
 ];
 
 const ACTIVITY_LOG = [
-  { tool: "claude",     action: "Opened for essay help",         time: "2m ago" },
-  { tool: "notion",     action: "Edited Physics notes page",      time: "4h ago" },
-  { tool: "figma",      action: "Opened UI project",             time: "1h ago" },
-  { tool: "notebooklm", action: "Uploaded AP Bio lecture PDF",   time: "3h ago" },
-  { tool: "zapier",     action: "Homework reminder automation",  time: "1d ago" },
-  { tool: "canva",      action: "Created poster for class",      time: "Yesterday" },
+  { tool: "claude",     action: "Essay draft — AP English",        time: "2m ago",    group: "now" },
+  { tool: "figma",      action: "Opened design project",           time: "1h ago",    group: "today" },
+  { tool: "notion",     action: "Updated Physics notes",           time: "4h ago",    group: "today" },
+  { tool: "notebooklm", action: "Uploaded AP Bio lecture PDF",     time: "3h ago",    group: "today" },
+  { tool: "zapier",     action: "Homework reminder automation",    time: "Yesterday", group: "yesterday" },
+  { tool: "canva",      action: "Class poster — Biology",          time: "Yesterday", group: "yesterday" },
 ];
 
 const AI_SUGGESTIONS = [
-  { tool: "notebooklm", reason: "Quiz coming up — upload your notes to study smarter", priority: "high" },
-  { tool: "claude",     reason: "3 homework items open — get writing help now",        priority: "medium" },
-  { tool: "zapier",     reason: "Set up homework deadline reminders automatically",   priority: "low" },
+  {
+    tool: "notebooklm",
+    reason: "Upload lecture notes before the quiz",
+    context: "Bio quiz in 2 days · confidence at 62%",
+    priority: "high",
+    actionLabel: "Open →",
+  },
+  {
+    tool: "claude",
+    reason: "3 homework items still need writing",
+    context: "Essay · Physics problem set · History reading",
+    priority: "medium",
+    actionLabel: "Start →",
+  },
+  {
+    tool: "zapier",
+    reason: "Automate your deadline reminders",
+    context: "Save ~30 min/week · 2 flows suggested",
+    priority: "low",
+    actionLabel: "Explore →",
+  },
 ];
 
 function ToolIconSm({ id, color, size = 18 }) {
@@ -1913,6 +2057,8 @@ function CommandPalette({ tools, onClose }) {
 
   React.useEffect(() => { inputRef.current && inputRef.current.focus(); }, []);
 
+  const recents = tools.filter(t => t.status === "active").slice(0, 3);
+
   const results = React.useMemo(() => {
     const q = query.toLowerCase().trim();
     if (!q) return tools;
@@ -1925,29 +2071,73 @@ function CommandPalette({ tools, onClose }) {
 
   React.useEffect(() => { setSelected(0); }, [results]);
 
+  const displayList = query ? results : tools;
+
   const handleKey = (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setSelected(s => Math.min(s + 1, results.length - 1)); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setSelected(s => Math.min(s + 1, displayList.length - 1)); }
     if (e.key === "ArrowUp")   { e.preventDefault(); setSelected(s => Math.max(s - 1, 0)); }
-    if (e.key === "Enter" && results[selected]) { window.open(results[selected].url, "_blank"); onClose(); }
+    if (e.key === "Enter" && displayList[selected]) { window.open(displayList[selected].url, "_blank"); onClose(); }
     if (e.key === "Escape") onClose();
   };
+
+  const PaletteRow = ({ t, i, isSelected }) => (
+    <a
+      href={t.url} target="_blank" rel="noopener noreferrer"
+      onClick={onClose}
+      onMouseEnter={() => setSelected(i)}
+      className="tl-palette-item"
+      style={{
+        display: "flex", alignItems: "center", gap: 12, padding: "9px 18px",
+        textDecoration: "none", color: "inherit",
+        background: isSelected ? "var(--highlight)" : "transparent",
+        borderLeft: isSelected ? "2px solid " + t.color : "2px solid transparent",
+      }}
+    >
+      <div style={{
+        width: 32, height: 32, borderRadius: 8,
+        background: isSelected ? t.color + "28" : t.color + "18",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        transition: "background 0.1s",
+      }}>
+        <ToolIconSm id={t.id} color={t.color} size={16} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 500 }}>{t.name}</span>
+          {t.status === "active" && (
+            <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--done)", letterSpacing: "0.04em" }}>● active</span>
+          )}
+          {t.status === "new" && (
+            <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--info)", background: "rgba(96,144,186,0.12)", border: "1px solid rgba(96,144,186,0.3)", borderRadius: 3, padding: "0 4px" }}>new</span>
+          )}
+        </div>
+        <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {t.desc}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{t.category}</span>
+        {isSelected && <span style={{ fontFamily: "var(--f-mono)", fontSize: 11, color: "var(--ink-3)" }}>↵</span>}
+      </div>
+    </a>
+  );
 
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 200,
-      background: "rgba(0,0,0,0.72)",
+      background: "rgba(0,0,0,0.75)",
       display: "flex", alignItems: "flex-start", justifyContent: "center",
-      paddingTop: "14vh",
-      backdropFilter: "blur(4px)",
+      paddingTop: "12vh",
+      backdropFilter: "blur(6px)",
     }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{
-        width: 560, background: "var(--surface)", borderRadius: 12,
+        width: 580, background: "var(--surface)", borderRadius: 14,
         border: "1px solid var(--rule)",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)",
+        boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
         overflow: "hidden",
       }}>
-        {/* Search input */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--hairline)" }}>
+        {/* Input */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 18px", borderBottom: "1px solid var(--hairline)" }}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--ink-3)" strokeWidth="1.5">
             <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
           </svg>
@@ -1956,146 +2146,358 @@ function CommandPalette({ tools, onClose }) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Search tools, categories, or tags…"
+            placeholder="Search tools, categories, tags…"
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
-              color: "var(--ink)", fontFamily: "var(--f-ui)", fontSize: 15,
+              color: "var(--ink)", fontFamily: "var(--f-ui)", fontSize: 15, letterSpacing: "-0.01em",
             }}
           />
-          <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 4, padding: "2px 6px" }}>ESC</span>
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 5, padding: "2px 7px" }}>ESC</span>
         </div>
 
-        {/* Results */}
-        <div style={{ maxHeight: 340, overflowY: "auto" }}>
-          {results.length === 0 && (
-            <div style={{ padding: "24px 20px", fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-3)", textAlign: "center" }}>
-              No tools match "{query}"
+        {/* Body */}
+        <div style={{ maxHeight: 380, overflowY: "auto" }}>
+          {!query && (
+            <div style={{ padding: "8px 18px 4px", fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>
+              Recently active
             </div>
           )}
-          {results.map((t, i) => (
-            <a key={t.id} href={t.url} target="_blank" rel="noopener noreferrer"
-              onClick={onClose}
-              onMouseEnter={() => setSelected(i)}
-              style={{
-                display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
-                textDecoration: "none", color: "inherit",
-                background: i === selected ? "var(--highlight)" : "transparent",
-                borderLeft: i === selected ? "2px solid " + t.color : "2px solid transparent",
-                transition: "background 0.08s",
-              }}>
-              <div style={{ width: 30, height: 30, borderRadius: 7, background: t.color + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <ToolIconSm id={t.id} color={t.color} size={16} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 500 }}>{t.name}</div>
-                <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.desc}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{t.category}</span>
-                <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)" }}>↵</span>
-              </div>
-            </a>
-          ))}
+          {displayList.length === 0 ? (
+            <div style={{ padding: "28px 20px", fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-3)", textAlign: "center" }}>
+              No tools match "{query}"
+            </div>
+          ) : (
+            displayList.map((t, i) => (
+              <PaletteRow key={t.id} t={t} i={i} isSelected={i === selected} />
+            ))
+          )}
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "10px 18px", borderTop: "1px solid var(--hairline)", display: "flex", gap: 18, alignItems: "center" }}>
-          {[["↵", "Open"], ["↑↓", "Navigate"], ["ESC", "Close"]].map(([key, label]) => (
-            <span key={key} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>
-              <span style={{ background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{key}</span>
-              {label}
+        <div style={{ padding: "9px 18px", borderTop: "1px solid var(--hairline)", display: "flex", gap: 16, alignItems: "center", background: "var(--bg-2)" }}>
+          {[["↵", "Open"], ["↑↓", "Navigate"], ["ESC", "Close"]].map(([key, lbl]) => (
+            <span key={key} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>
+              <span style={{ background: "var(--surface)", border: "1px solid var(--rule)", borderRadius: 4, padding: "2px 6px" }}>{key}</span>
+              {lbl}
             </span>
           ))}
-          <span style={{ marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>{results.length} result{results.length !== 1 ? "s" : ""}</span>
+          <span style={{ marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>
+            {displayList.length} tool{displayList.length !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Compact tool card (Linear-style) ──
-function ToolCardCompact({ tool, index }) {
+// ── Tool list row — elevated ──
+function ToolCardCompact({ tool, index, delay = 0 }) {
   const [hovered, setHovered] = React.useState(false);
-  const trendUp = tool.stat.trend.startsWith("+");
   const trendNew = tool.stat.trend === "new";
-  const trendColor = trendNew ? "var(--info)" : trendUp ? "var(--done)" : "var(--accent)";
+  const trendUp  = !trendNew && tool.stat.trend.startsWith("+");
+  const trendDown = !trendNew && tool.stat.trend.startsWith("-");
+  const trendColor = trendNew ? "var(--info)" : trendUp ? "var(--done)" : trendDown ? "var(--accent)" : "var(--ink-3)";
+
+  const weekDelta = tool.stat.weekSessions - tool.stat.prevWeek;
+  const weekLabel = weekDelta > 0 ? "+" + weekDelta + " vs last wk" : weekDelta < 0 ? weekDelta + " vs last wk" : "same as last wk";
 
   return (
     <a
       href={tool.url}
       target="_blank"
       rel="noopener noreferrer"
+      className="tl-tool-row"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         display: "grid",
-        gridTemplateColumns: "36px 1fr auto",
+        gridTemplateColumns: "38px 1fr 60px auto",
         alignItems: "center",
-        gap: 12,
-        padding: "10px 14px",
-        background: hovered ? "var(--highlight)" : "transparent",
+        gap: 14,
+        padding: "10px 16px",
+        background: "transparent",
         borderBottom: "1px solid var(--hairline)",
-        borderLeft: hovered ? "2px solid " + tool.color : "2px solid transparent",
+        borderLeft: "2px solid " + (hovered ? tool.color : "transparent"),
         textDecoration: "none", color: "inherit",
-        transition: "background 0.1s, border-color 0.1s",
         cursor: "pointer",
-        position: "relative",
+        animationDelay: delay + "ms",
       }}
     >
-      {/* Icon */}
-      <div style={{
-        width: 34, height: 34, borderRadius: 8,
-        background: hovered ? tool.color + "28" : tool.color + "16",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0, transition: "background 0.1s",
-      }}>
-        <ToolIconSm id={tool.id} color={tool.color} size={17} />
+      {/* Icon with status dot */}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 9,
+          background: hovered ? tool.color + "30" : tool.color + "18",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.12s",
+        }}>
+          <ToolIconSm id={tool.id} color={tool.color} size={18} />
+        </div>
+        <div style={{ position: "absolute", bottom: -1, right: -1 }}>
+          <StatusDot status={tool.status} color={tool.color} />
+        </div>
       </div>
 
-      {/* Name + desc */}
+      {/* Name + metadata row + desc */}
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>{tool.name}</span>
-          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tool.category}</span>
-          {index < 3 && <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: trendNew ? "var(--info)" : "var(--done)", background: trendNew ? "var(--info)" + "18" : "var(--done-soft)", border: "1px solid " + (trendNew ? "var(--info)" : "var(--done)") + "40", borderRadius: 3, padding: "1px 5px" }}>{trendNew ? "NEW" : "TOP"}</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 500, letterSpacing: "-0.01em" }}>{tool.name}</span>
+          <span style={{
+            fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)",
+            background: "var(--bg-2)", border: "1px solid var(--hairline)",
+            borderRadius: 3, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.06em",
+          }}>{tool.category}</span>
+          <StreakBadge count={tool.stat.streak} color={tool.color} />
+          {tool.status === "new" && (
+            <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--info)", background: "rgba(96,144,186,0.12)", border: "1px solid rgba(96,144,186,0.28)", borderRadius: 3, padding: "1px 5px" }}>new</span>
+          )}
+          {tool.status === "trending" && (
+            <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--done)", opacity: 0.8 }}>↑ trending</span>
+          )}
         </div>
-        <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tool.desc}</div>
+        <div style={{
+          fontFamily: "var(--f-mono)", fontSize: 10.5, color: hovered ? "var(--ink-2)" : "var(--ink-3)",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          transition: "color 0.1s",
+        }}>{tool.desc}</div>
+      </div>
+
+      {/* Sparkline */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+        <Sparkline data={tool.sparkline} color={tool.color} width={52} height={18} />
+        <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: weekDelta > 0 ? "var(--done)" : weekDelta < 0 ? "var(--accent)" : "var(--ink-3)" }}>
+          {weekLabel}
+        </span>
       </div>
 
       {/* Stats */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-2)", fontWeight: 600 }}>{tool.stat.sessions}</div>
-          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>sessions</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+        <div style={{ textAlign: "right", minWidth: 42 }}>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", letterSpacing: "-0.02em" }}>{tool.stat.sessions}</div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>sessions</div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-2)" }}>{tool.stat.lastUsed}</div>
-          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>last used</div>
+        <div style={{ textAlign: "right", minWidth: 52 }}>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 11, color: "var(--ink-2)" }}>{tool.stat.lastUsed}</div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>last used</div>
         </div>
         <div style={{
-          fontFamily: "var(--f-mono)", fontSize: 10.5,
+          fontFamily: "var(--f-mono)", fontSize: 10.5, fontWeight: 500,
           color: trendColor,
-          background: trendColor + "15",
-          border: "1px solid " + trendColor + "35",
-          borderRadius: 4, padding: "2px 7px", minWidth: 44, textAlign: "center",
+          background: trendColor === "var(--ink-3)" ? "transparent" : trendColor + "14",
+          border: "1px solid " + (trendColor === "var(--ink-3)" ? "var(--hairline)" : trendColor + "30"),
+          borderRadius: 4, padding: "2px 8px", minWidth: 46, textAlign: "center",
         }}>{trendNew ? "new" : tool.stat.trend}</div>
         {hovered && (
-          <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: tool.color }}>Open ↗</span>
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 11, color: tool.color, fontWeight: 500, minWidth: 52 }}>Open ↗</span>
         )}
       </div>
     </a>
   );
 }
 
+// Grid card — own component to avoid hooks-in-map violation
+function ToolGridCard({ tool }) {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <a
+      href={tool.url} target="_blank" rel="noopener noreferrer"
+      className="tl-grid-card"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", flexDirection: "column", gap: 12, padding: "14px 16px",
+        background: hovered ? "var(--highlight)" : "var(--surface)",
+        border: "1px solid " + (hovered ? tool.color + "50" : "var(--hairline)"),
+        borderRadius: 10, textDecoration: "none", color: "inherit",
+        position: "relative", overflow: "hidden",
+      }}
+    >
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 2,
+        background: tool.color,
+        opacity: hovered ? 1 : 0.4,
+        transition: "opacity 0.14s",
+      }} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ position: "relative" }}>
+          <div style={{ width: 36, height: 36, borderRadius: 9, background: tool.color + "20", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ToolIconSm id={tool.id} color={tool.color} size={18} />
+          </div>
+          <div style={{ position: "absolute", bottom: -1, right: -1 }}>
+            <StatusDot status={tool.status} color={tool.color} />
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <StreakBadge count={tool.stat.streak} color={tool.color} />
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{tool.shortcut}</span>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 13.5, fontWeight: 500, letterSpacing: "-0.01em", marginBottom: 1 }}>{tool.name}</div>
+        <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tool.category}</div>
+      </div>
+      <Sparkline data={tool.sparkline} color={tool.color} width={80} height={20} />
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", borderTop: "1px solid var(--hairline)", paddingTop: 8, marginTop: 2 }}>
+        <span style={{ fontWeight: 600, color: "var(--ink-2)" }}>{tool.stat.sessions}<span style={{ fontWeight: 400, color: "var(--ink-3)" }}> sess</span></span>
+        <span>{tool.stat.lastUsed}</span>
+      </div>
+    </a>
+  );
+}
+
+// ── AI Suggestion card ──
+function SuggestionCard({ s, index }) {
+  const tool = TOOLS_DATA.find(t => t.id === s.tool);
+  const pCfg = {
+    high:   { color: "var(--accent)",  bg: "rgba(169,114,88,0.08)",  dot: "●", label: "HIGH"   },
+    medium: { color: "var(--info)",    bg: "rgba(96,144,186,0.07)",  dot: "●", label: "MED"    },
+    low:    { color: "var(--ink-3)",   bg: "transparent",             dot: "○", label: "LOW"    },
+  }[s.priority] || { color: "var(--ink-3)", bg: "transparent", dot: "○", label: "" };
+
+  return (
+    <a
+      href={tool.url} target="_blank" rel="noopener noreferrer"
+      className="tl-sugg-card"
+      style={{
+        display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 14px",
+        marginBottom: 5, background: pCfg.bg,
+        border: "1px solid var(--hairline)",
+        borderLeft: "3px solid " + pCfg.color,
+        borderRadius: 8, textDecoration: "none", color: "inherit",
+        animationDelay: (index * 60) + "ms",
+        "--border-color": pCfg.color,
+      }}
+    >
+      <div style={{ width: 30, height: 30, borderRadius: 7, background: tool.color + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+        <ToolIconSm id={tool.id} color={tool.color} size={15} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{tool.name}</span>
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: pCfg.color, letterSpacing: "0.08em" }}>{pCfg.dot} {pCfg.label}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.4, marginBottom: 3 }}>{s.reason}</div>
+        <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>{s.context}</div>
+      </div>
+      <div style={{ flexShrink: 0, fontFamily: "var(--f-mono)", fontSize: 10.5, color: pCfg.color, fontWeight: 500, marginTop: 2, whiteSpace: "nowrap" }}>
+        {s.actionLabel}
+      </div>
+    </a>
+  );
+}
+
+// ── Quick action row ──
+function QuickActionRow({ action, index }) {
+  const tool = TOOLS_DATA.find(t => t.id === action.tool);
+  return (
+    <a
+      href={tool.url} target="_blank" rel="noopener noreferrer"
+      className="tl-act-row"
+      style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
+        borderBottom: index < QUICK_ACTIONS.length - 1 ? "1px solid var(--hairline)" : "none",
+        textDecoration: "none", color: "inherit", background: "transparent",
+      }}
+    >
+      <div style={{ width: 28, height: 28, borderRadius: 7, background: tool.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <ToolIconSm id={tool.id} color={tool.color} size={14} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>{action.label}</div>
+        <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 1 }}>{action.desc}</div>
+      </div>
+      <span style={{
+        fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-2)",
+        background: "var(--bg-2)", border: "1px solid var(--rule)",
+        borderRadius: 5, padding: "2px 7px", flexShrink: 0,
+        letterSpacing: "0.02em",
+      }}>{action.shortcut}</span>
+    </a>
+  );
+}
+
+// ── Activity feed item ──
+function ActivityItem({ entry, index, showGroupLabel, isLast }) {
+  const tool = TOOLS_DATA.find(t => t.id === entry.tool);
+  return (
+    <>
+      {showGroupLabel && (
+        <div style={{ padding: "6px 14px 4px", fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em", borderBottom: "none" }}>
+          {entry.group === "now" ? "● Just now" : entry.group === "today" ? "Today" : "Yesterday"}
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "7px 14px", position: "relative" }}>
+        {/* Timeline line */}
+        {!isLast && (
+          <div style={{ position: "absolute", left: 18, top: 22, bottom: -7, width: 1, background: "var(--hairline)", zIndex: 0 }} />
+        )}
+        {/* Dot */}
+        <div style={{
+          width: 8, height: 8, borderRadius: "50%", background: tool.color,
+          flexShrink: 0, marginTop: 5, zIndex: 1, flexShrink: 0,
+          boxShadow: entry.group === "now" ? "0 0 0 3px " + tool.color + "25" : "none",
+        }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>{entry.action}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
+            <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>{tool.name}</span>
+          </div>
+        </div>
+        <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: entry.group === "now" ? tool.color : "var(--ink-3)", flexShrink: 0, fontWeight: entry.group === "now" ? 500 : 400 }}>
+          {entry.time}
+        </span>
+      </div>
+    </>
+  );
+}
+
+// ── Usage bar with sparkline ──
+function UsageBar({ tool, totalSessions }) {
+  const pct = Math.round(tool.stat.sessions / totalSessions * 100);
+  const weekDelta = tool.stat.weekSessions - tool.stat.prevWeek;
+  const deltaColor = weekDelta > 0 ? "var(--done)" : weekDelta < 0 ? "var(--accent)" : "var(--ink-3)";
+  const deltaStr = weekDelta > 0 ? "+" + weekDelta : weekDelta === 0 ? "—" : String(weekDelta);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "10px 1fr 28px 36px", alignItems: "center", gap: 8, marginBottom: 9 }}>
+      <StatusDot status={tool.status} color={tool.color} />
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: "-0.01em" }}>{tool.name}</span>
+            {tool.stat.streak > 2 && (
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: tool.color, opacity: 0.8 }}>🔥{tool.stat.streak}</span>
+            )}
+          </div>
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>{tool.stat.sessions}</span>
+        </div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <div style={{ flex: 1, height: 3, background: "var(--hairline)", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: pct + "%", background: tool.color, borderRadius: 2, transition: "width 0.6s cubic-bezier(0.4,0,0.2,1)" }} />
+          </div>
+          <Sparkline data={tool.sparkline} color={tool.color} width={28} height={10} />
+        </div>
+      </div>
+      <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: deltaColor, textAlign: "right" }}>{deltaStr}</span>
+      <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textAlign: "right" }}>{pct}%</span>
+    </div>
+  );
+}
+
 function ToolsContent() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [filter, setFilter] = React.useState("All");
-  const [view, setView] = React.useState("list"); // "list" | "grid"
+  const [view, setView] = React.useState("list");
+  const [statsVisible, setStatsVisible] = React.useState(false);
 
   const categories = ["All", "AI", "Design", "Productivity"];
   const filtered = filter === "All" ? TOOLS_DATA : TOOLS_DATA.filter(t => t.category === filter);
 
-  // Global keyboard shortcut for command palette
+  React.useEffect(() => {
+    const timer = setTimeout(() => setStatsVisible(true), 80);
+    return () => clearTimeout(timer);
+  }, []);
+
   React.useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -2109,31 +2511,49 @@ function ToolsContent() {
 
   const totalSessions = TOOLS_DATA.reduce((s, t) => s + t.stat.sessions, 0);
   const topTool = TOOLS_DATA.reduce((a, b) => a.stat.sessions > b.stat.sessions ? a : b);
-  const aiTools = TOOLS_DATA.filter(t => t.category === "AI").length;
+  const aiCount = TOOLS_DATA.filter(t => t.category === "AI").length;
+  const activeCount = TOOLS_DATA.filter(t => t.status === "active").length;
+  const totalWeekSessions = TOOLS_DATA.reduce((s, t) => s + t.stat.weekSessions, 0);
+  const totalPrevWeek = TOOLS_DATA.reduce((s, t) => s + t.stat.prevWeek, 0);
+  const weekChange = totalWeekSessions - totalPrevWeek;
+
+  // Group activity by group key
+  const activityGroups = ACTIVITY_LOG.reduce((acc, e) => {
+    if (!acc[e.group]) acc[e.group] = [];
+    acc[e.group].push(e);
+    return acc;
+  }, {});
+
+  const sortedByUsage = [...TOOLS_DATA].sort((a, b) => b.stat.sessions - a.stat.sessions);
 
   return (
     <>
+      <ToolsStyleBlock />
       {paletteOpen && <CommandPalette tools={TOOLS_DATA} onClose={() => setPaletteOpen(false)} />}
 
       {/* ── Header ── */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
-          Tools · {TOOLS_DATA.length} connected · {aiTools} AI
-        </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <h1 style={{ fontFamily: "var(--f-display)", fontSize: 28, margin: 0, fontWeight: 400, letterSpacing: "-0.02em" }}>
-            Your <em style={{ color: "var(--accent-ink)" }}>toolkit</em>
-          </h1>
-          <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.14em", display: "flex", alignItems: "center", gap: 10 }}>
+            <span>Tools</span>
+            <span style={{ color: "var(--hairline)" }}>·</span>
+            <span>{TOOLS_DATA.length} connected</span>
+            <span style={{ color: "var(--hairline)" }}>·</span>
+            <span style={{ color: activeCount > 0 ? "var(--done)" : "var(--ink-3)" }}>
+              <span className={activeCount > 0 ? "tl-blink" : ""} style={{ marginRight: 4 }}>●</span>
+              {activeCount} active
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             {/* View toggle */}
-            <div style={{ display: "flex", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 6, padding: 2, gap: 2 }}>
+            <div style={{ display: "flex", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 6, padding: 2 }}>
               {[["list", "≡"], ["grid", "⊞"]].map(([v, icon]) => (
                 <button key={v} onClick={() => setView(v)} style={{
-                  width: 28, height: 24, borderRadius: 4, border: "none",
+                  width: 28, height: 22, borderRadius: 4, border: "none",
                   background: view === v ? "var(--surface)" : "transparent",
                   color: view === v ? "var(--ink)" : "var(--ink-3)",
-                  cursor: "pointer", fontSize: 14, display: "grid", placeItems: "center",
-                  boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.18)" : "none",
+                  cursor: "pointer", fontSize: 13, display: "grid", placeItems: "center",
+                  boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
                   transition: "all 0.1s",
                 }}>{icon}</button>
               ))}
@@ -2141,225 +2561,212 @@ function ToolsContent() {
             <button
               onClick={() => setPaletteOpen(true)}
               style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "8px 14px",
+                display: "flex", alignItems: "center", gap: 9,
+                padding: "7px 12px",
                 background: "var(--surface)", border: "1px solid var(--rule)",
                 borderRadius: 8, cursor: "pointer", color: "var(--ink-2)",
-                fontFamily: "var(--f-ui)", fontSize: 13,
+                fontFamily: "var(--f-ui)", fontSize: 12.5,
                 boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-                transition: "border-color 0.1s",
               }}
             >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-              <span>Search tools…</span>
-              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 4, padding: "1px 6px" }}>⌘K</span>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+              Search tools
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 4, padding: "1px 6px" }}>⌘K</span>
             </button>
           </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+          <h1 style={{ fontFamily: "var(--f-display)", fontSize: 26, margin: 0, fontWeight: 400, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+            Your <em style={{ color: "var(--accent-ink)" }}>command center</em>
+          </h1>
+          <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: weekChange > 0 ? "var(--done)" : "var(--ink-3)" }}>
+            {weekChange > 0 ? "+" : ""}{weekChange} sessions vs last week
+          </span>
         </div>
       </div>
 
       {/* ── Stats bar ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
         {[
-          { label: "Total sessions", value: totalSessions, sub: "all tools" },
-          { label: "Most used", value: topTool.name, sub: topTool.stat.sessions + " sessions", color: topTool.color },
-          { label: "Tools active", value: TOOLS_DATA.length, sub: aiTools + " AI · " + (TOOLS_DATA.length - aiTools) + " other" },
-          { label: "Last opened", value: "Claude", sub: "2m ago", color: "#d97757" },
+          {
+            label: "This week",
+            value: totalWeekSessions,
+            sub: weekChange > 0 ? "+" + weekChange + " vs last week" : weekChange + " vs last week",
+            subColor: weekChange > 0 ? "var(--done)" : "var(--ink-3)",
+            icon: "W",
+          },
+          {
+            label: "Top tool",
+            value: topTool.name,
+            sub: topTool.stat.sessions + " total · " + topTool.stat.weekSessions + " this wk",
+            color: topTool.color,
+            icon: "★",
+          },
+          {
+            label: "Connected",
+            value: TOOLS_DATA.length,
+            sub: aiCount + " AI · " + activeCount + " active now",
+            icon: "◎",
+          },
+          {
+            label: "Last opened",
+            value: "Claude",
+            sub: "2 min ago · AI category",
+            color: "#d97757",
+            icon: "↺",
+          },
         ].map((s, i) => (
-          <div key={i} style={{
-            padding: "12px 14px", background: "var(--surface)",
-            border: "1px solid var(--hairline)", borderRadius: 8,
-          }}>
-            <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: s.color || "var(--ink)", fontFamily: "var(--f-display)", lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", marginTop: 4 }}>{s.sub}</div>
+          <div
+            key={i}
+            className="tl-stat-card"
+            style={{
+              padding: "11px 14px",
+              background: "var(--surface)",
+              border: "1px solid var(--hairline)",
+              borderRadius: 9,
+              opacity: statsVisible ? 1 : 0,
+              transform: statsVisible ? "none" : "translateY(4px)",
+              transition: "opacity 0.25s ease " + (i * 50) + "ms, transform 0.25s ease " + (i * 50) + "ms, border-color 0.12s, box-shadow 0.12s",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 5 }}>
+              <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{s.label}</div>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", opacity: 0.5 }}>{s.icon}</span>
+            </div>
+            <div style={{ fontSize: 19, fontWeight: 600, color: s.color || "var(--ink)", fontFamily: "var(--f-display)", lineHeight: 1, letterSpacing: "-0.02em", marginBottom: 4 }}>{s.value}</div>
+            <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: s.subColor || "var(--ink-3)" }}>{s.sub}</div>
           </div>
         ))}
       </div>
 
       {/* ── Two-column layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 296px", gap: 14, alignItems: "start" }}>
 
-        {/* LEFT — main tools list/grid */}
-        <div>
+        {/* ── LEFT ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
           {/* AI Suggestions */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>✦ AI Suggestions</span>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.14em", display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ color: "var(--accent-ink)", fontStyle: "normal" }}>✦</span> Intelligent suggestions
+              </span>
               <div style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)" }}>3 active</span>
             </div>
-            {AI_SUGGESTIONS.map((s, i) => {
-              const tool = TOOLS_DATA.find(t => t.id === s.tool);
-              const pColor = s.priority === "high" ? "var(--accent)" : s.priority === "medium" ? "var(--info)" : "var(--ink-3)";
-              return (
-                <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
-                    marginBottom: 4, background: "var(--bg-2)", border: "1px solid var(--hairline)",
-                    borderRadius: 7, textDecoration: "none", color: "inherit",
-                    borderLeft: "3px solid " + pColor,
-                    transition: "background 0.1s",
+            {AI_SUGGESTIONS.map((s, i) => <SuggestionCard key={i} s={s} index={i} />)}
+          </div>
+
+          {/* Filter + list header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              {categories.map(cat => {
+                const count = cat === "All" ? TOOLS_DATA.length : TOOLS_DATA.filter(t => t.category === cat).length;
+                const active = filter === cat;
+                return (
+                  <button key={cat} onClick={() => setFilter(cat)} style={{
+                    padding: "3px 10px", borderRadius: 5,
+                    border: "1px solid " + (active ? "var(--ink-2)" : "var(--hairline)"),
+                    background: active ? "var(--surface)" : "transparent",
+                    color: active ? "var(--ink)" : "var(--ink-3)",
+                    fontFamily: "var(--f-mono)", fontSize: 10.5,
+                    cursor: "pointer", transition: "all 0.1s",
+                    display: "flex", alignItems: "center", gap: 5,
+                    boxShadow: active ? "0 1px 3px rgba(0,0,0,0.14)" : "none",
                   }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 6, background: tool.color + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <ToolIconSm id={tool.id} color={tool.color} size={14} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>{tool.name}</div>
-                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 1 }}>{s.reason}</div>
-                  </div>
-                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: pColor, textTransform: "uppercase", letterSpacing: "0.08em" }}>{s.priority}</span>
-                </a>
-              );
-            })}
-          </div>
-
-          {/* Filter bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            {categories.map(cat => {
-              const count = cat === "All" ? TOOLS_DATA.length : TOOLS_DATA.filter(t => t.category === cat).length;
-              const active = filter === cat;
-              return (
-                <button key={cat} onClick={() => setFilter(cat)} style={{
-                  padding: "4px 10px", borderRadius: 5,
-                  border: "1px solid " + (active ? "var(--ink-2)" : "var(--hairline)"),
-                  background: active ? "var(--surface)" : "transparent",
-                  color: active ? "var(--ink)" : "var(--ink-3)",
-                  fontFamily: "var(--f-mono)", fontSize: 10.5,
-                  cursor: "pointer", transition: "all 0.1s",
-                  display: "flex", alignItems: "center", gap: 5,
-                  boxShadow: active ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
-                }}>
-                  {cat}
-                  <span style={{ opacity: 0.55, fontSize: 9.5 }}>{count}</span>
-                </button>
-              );
-            })}
-            <div style={{ marginLeft: "auto", fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>
-              {filtered.length} tool{filtered.length !== 1 ? "s" : ""}
+                    {cat}
+                    <span style={{ opacity: 0.5, fontSize: 9 }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>{filtered.length} tool{filtered.length !== 1 ? "s" : ""}</span>
             </div>
           </div>
 
-          {/* Tool list or grid */}
+          {/* Tool list / grid */}
           {view === "list" ? (
             <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, overflow: "hidden" }}>
+              {/* Column headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "38px 1fr 60px auto", gap: 14, padding: "6px 16px", borderBottom: "1px solid var(--hairline)", background: "var(--bg-2)" }}>
+                <div />
+                <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Tool</div>
+                <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "right" }}>7d activity</div>
+                <div style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", textAlign: "right", paddingRight: 0 }}>Sessions · Last used · Trend</div>
+              </div>
               {filtered.map((tool, i) => (
-                <ToolCardCompact key={tool.id} tool={tool} index={i} />
+                <ToolCardCompact key={tool.id} tool={tool} index={i} delay={i * 30} />
               ))}
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-              {filtered.map(tool => {
-                const [hov, setHov] = React.useState(false);
-                return (
-                  <a key={tool.id} href={tool.url} target="_blank" rel="noopener noreferrer"
-                    onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-                    style={{
-                      display: "flex", flexDirection: "column", gap: 10, padding: "14px",
-                      background: hov ? "var(--highlight)" : "var(--surface)",
-                      border: "1px solid " + (hov ? tool.color + "55" : "var(--hairline)"),
-                      borderRadius: 10, textDecoration: "none", color: "inherit",
-                      transition: "all 0.12s",
-                    }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: tool.color + "20", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <ToolIconSm id={tool.id} color={tool.color} size={18} />
-                      </div>
-                      <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px" }}>{tool.shortcut}</span>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13.5, fontWeight: 500 }}>{tool.name}</div>
-                      <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 2 }}>{tool.category}</div>
-                    </div>
-                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", display: "flex", justifyContent: "space-between" }}>
-                      <span>{tool.stat.sessions} sessions</span>
-                      <span>{tool.stat.lastUsed}</span>
-                    </div>
-                  </a>
-                );
-              })}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(172px, 1fr))", gap: 9 }}>
+              {filtered.map(tool => <ToolGridCard key={tool.id} tool={tool} />)}
             </div>
           )}
         </div>
 
-        {/* RIGHT — sidebar: quick actions + activity */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* ── RIGHT sidebar ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
           {/* Quick Actions */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, overflow: "hidden" }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Quick Actions</span>
-              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>⌘1–4</span>
+            <div style={{ padding: "9px 14px 8px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Quick Launch</span>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 4, padding: "1px 6px" }}>⌘1–4</span>
             </div>
-            {QUICK_ACTIONS.map((action, i) => {
-              const tool = TOOLS_DATA.find(t => t.id === action.tool);
-              return (
-                <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
-                    borderBottom: i < QUICK_ACTIONS.length - 1 ? "1px solid var(--hairline)" : "none",
-                    textDecoration: "none", color: "inherit",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "var(--bg-2)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <div style={{ width: 26, height: 26, borderRadius: 6, background: tool.color + "18", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <ToolIconSm id={tool.id} color={tool.color} size={13} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{action.label}</div>
-                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 1 }}>{action.desc}</div>
-                  </div>
-                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", background: "var(--bg-2)", border: "1px solid var(--hairline)", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{action.shortcut}</span>
-                </a>
-              );
-            })}
+            {QUICK_ACTIONS.map((action, i) => <QuickActionRow key={i} action={action} index={i} />)}
+            <div style={{ padding: "7px 14px", borderTop: "1px solid var(--hairline)", background: "var(--bg-2)" }}>
+              <button onClick={() => setPaletteOpen(true)} style={{
+                width: "100%", padding: "5px 0", background: "transparent", border: "none",
+                fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                transition: "color 0.1s",
+              }}
+                onMouseEnter={e => e.currentTarget.style.color = "var(--ink-2)"}
+                onMouseLeave={e => e.currentTarget.style.color = "var(--ink-3)"}
+              >
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                Browse all tools — ⌘K
+              </button>
+            </div>
           </div>
 
-          {/* Recent Activity */}
+          {/* Activity Feed */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, overflow: "hidden" }}>
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Recent Activity</span>
-              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>last 7 days</span>
+            <div style={{ padding: "9px 14px 8px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="tl-blink" style={{ color: "var(--done)", fontSize: 8 }}>●</span>
+                <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Activity</span>
+              </div>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)" }}>last 24h</span>
             </div>
-            {ACTIVITY_LOG.map((entry, i) => {
-              const tool = TOOLS_DATA.find(t => t.id === entry.tool);
-              return (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "8px 14px",
-                  borderBottom: i < ACTIVITY_LOG.length - 1 ? "1px solid var(--hairline)" : "none",
-                }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: tool.color, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.action}</div>
-                    <div style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginTop: 1 }}>{tool.name}</div>
-                  </div>
-                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", flexShrink: 0 }}>{entry.time}</span>
-                </div>
-              );
-            })}
+            <div style={{ padding: "4px 0 6px" }}>
+              {ACTIVITY_LOG.map((entry, i) => {
+                const prevEntry = i > 0 ? ACTIVITY_LOG[i - 1] : null;
+                const showGroupLabel = !prevEntry || prevEntry.group !== entry.group;
+                const isLast = i === ACTIVITY_LOG.length - 1;
+                return (
+                  <ActivityItem key={i} entry={entry} index={i} showGroupLabel={showGroupLabel} isLast={isLast} />
+                );
+              })}
+            </div>
           </div>
 
           {/* Usage breakdown */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, padding: "12px 14px" }}>
-            <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>Usage by tool</div>
-            {[...TOOLS_DATA].sort((a, b) => b.stat.sessions - a.stat.sessions).map((tool, i) => {
-              const pct = Math.round(tool.stat.sessions / totalSessions * 100);
-              return (
-                <div key={tool.id} style={{ display: "grid", gridTemplateColumns: "20px 1fr 36px", alignItems: "center", gap: 8, marginBottom: 7 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: tool.color, margin: "0 auto" }} />
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 11.5, fontWeight: 500 }}>{tool.name}</span>
-                      <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)" }}>{tool.stat.sessions}</span>
-                    </div>
-                    <div style={{ height: 3, background: "var(--hairline)", borderRadius: 2, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: pct + "%", background: tool.color, borderRadius: 2, transition: "width 0.5s ease" }} />
-                    </div>
-                  </div>
-                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", textAlign: "right" }}>{pct}%</span>
-                </div>
-              );
-            })}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 11 }}>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Usage breakdown</span>
+              <span style={{ fontFamily: "var(--f-mono)", fontSize: 9, color: "var(--ink-3)" }}>Δ this week</span>
+            </div>
+            {sortedByUsage.map(tool => (
+              <UsageBar key={tool.id} tool={tool} totalSessions={totalSessions} />
+            ))}
+            <div style={{ borderTop: "1px solid var(--hairline)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)" }}>
+              <span>{totalSessions} total sessions</span>
+              <span style={{ color: weekChange > 0 ? "var(--done)" : "var(--ink-3)" }}>{weekChange > 0 ? "+" : ""}{weekChange} this week</span>
+            </div>
           </div>
         </div>
       </div>
