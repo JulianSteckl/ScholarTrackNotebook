@@ -209,236 +209,122 @@ function TakeQuiz({ type, deckId, onExit }) {
   return <Component deckId={deckId} onExit={onExit} />;
 }
 
-
-// ─────────────── AI Study Plan — hero, auto-generates on load
+// ─────────────── AI Study Plan panel
 
 function AIStudyPlan() {
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [plan, setPlan] = React.useState("");
   const [error, setError] = React.useState("");
-  const [generated, setGenerated] = React.useState(false);
 
   const generate = async () => {
-    setLoading(true); setError(""); setPlan(""); setGenerated(false);
+    setLoading(true); setError(""); setPlan("");
     const openHW = [...HOMEWORK, ...nbGetHomework()].filter((h) => !h.done);
     const now = new Date();
-    const dayNamesLong = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const today = dayNamesLong[now.getDay()];
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const today = dayNames[now.getDay()];
     const dateStr = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
     const hwList = openHW.map((h) => {
       const s = subjectBy(h.subject);
-      return "- " + s.short + ": \"" + h.title + "\" — due " + h.due + ", est. " + h.est + (h.urgent ? " [URGENT]" : "");
+      return `- ${s.short}: "${h.title}" — due ${h.due}, est. ${h.est}${h.urgent ? " [URGENT]" : ""}`;
     }).join("\n") || "No open homework.";
+
     const quizList = QUIZZES_UPCOMING.map((q) => {
       const s = subjectBy(q.subject);
-      return "- " + s.short + ": \"" + q.title + "\" on " + q.when + " (confidence " + Math.round(q.confidence * 100) + "%)";
+      return `- ${s.short}: "${q.title}" on ${q.when} (confidence ${Math.round(q.confidence * 100)}%)`;
     }).join("\n") || "No upcoming quizzes.";
-    const prompt = "You are a study coach for a high school student. Today is " + dateStr + ".\n\nOpen homework:\n" + hwList + "\n\nUpcoming quizzes:\n" + quizList + "\n\nCreate a realistic day-by-day study plan for the rest of this week. For each day (starting with today, " + today + "), suggest what to work on and when (afternoon/evening). Be specific about which assignments to tackle each day and in what order. Keep it concise — one line per task. Format as:\n\n**Today (" + today + ")**\n- Task · time estimate\n\n**Tomorrow**\n- Task · time estimate\n\n...and so on. Max 5 days. End with one motivating sentence.";
+
+    const prompt = `You are a study coach for a high school student. Today is ${dateStr}.
+
+Open homework:
+${hwList}
+
+Upcoming quizzes:
+${quizList}
+
+Create a realistic day-by-day study plan for the rest of this week. For each day (starting with today, ${today}), suggest what to work on and when (afternoon/evening). Be specific about which assignments to tackle each day and in what order. Keep it concise — one line per task. Format as:
+
+**Today (${today})**
+- Task · time estimate
+
+**Tomorrow**
+- Task · time estimate
+
+...and so on. Max 5 days. End with one motivating sentence.`;
+
     try {
       const text = await aiComplete(prompt);
       setPlan(text || "(no response)");
-      setGenerated(true);
     } catch(e) {
-      if (e.message === "no-key") { setError("__no-key__"); }
-      else if (e.message === "invalid-key") { setError("Invalid API key — update it via the ✦ Connect AI button."); }
-      else { setError("Couldn't generate plan right now. Try again in a moment."); }
+      if (e.message === "no-key") {
+        setError("__no-key__");
+      } else if (e.message === "invalid-key") {
+        setError("Invalid API key — update it via the ✦ Connect AI button.");
+      } else {
+        setError("Couldn't generate plan right now. Try again in a moment.");
+      }
     } finally { setLoading(false); }
   };
 
-  React.useEffect(() => { if (nbGetApiKey()) { generate(); } }, []);
-
-  const parsedPlan = React.useMemo(() => {
-    if (!plan) return { sections: [], trailingNote: "" };
-    const sections = [];
-    let cur = null;
-    let trailingNote = "";
-    for (const raw of plan.split("\n")) {
-      const line = raw.trim();
-      if (line.startsWith("**") && line.endsWith("**")) {
-        if (cur) sections.push(cur);
-        cur = { heading: line.replace(/\*\*/g, ""), items: [] };
-      } else if (cur && line.startsWith("- ")) {
-        cur.items.push(line.slice(2));
-      } else if (line && cur && !line.startsWith("- ")) {
-        trailingNote = line;
-      } else if (line && !cur) {
-        trailingNote = line;
-      }
-    }
-    if (cur) {
-      if (cur.items.length === 0) trailingNote = cur.heading;
-      else sections.push(cur);
-    }
-    return { sections, trailingNote };
-  }, [plan]);
-
-  const subjectColorForItem = (text) => {
-    const s = SUBJECTS.find(sub =>
-      text.toLowerCase().includes(sub.short.toLowerCase()) ||
-      text.toLowerCase().includes(sub.name.toLowerCase())
-    );
-    return s ? s.color : "var(--accent)";
-  };
+  React.useEffect(() => { if (open && !plan && !loading) generate(); }, [open]);
 
   return (
-    <div style={{
-      marginBottom: 22,
-      border: "1px solid var(--hairline)",
-      borderRadius: 10,
-      overflow: "hidden",
-      background: "var(--surface)",
-      position: "relative",
-    }}>
-      <div style={{
-        position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
-        background: "linear-gradient(180deg, var(--accent) 0%, var(--plum) 100%)",
-        borderRadius: "10px 0 0 10px",
-        pointerEvents: "none",
-      }} />
-      <div
-        onClick={() => setOpen(v => !v)}
-        style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "13px 16px 13px 20px",
-          borderBottom: open ? "1px solid var(--hairline)" : "none",
-          cursor: "pointer", userSelect: "none",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: "var(--accent-soft)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 15, color: "var(--accent)", flexShrink: 0,
-          }}>✦</div>
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: "-0.015em", color: "var(--ink)" }}>AI Study Plan</div>
-            <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, color: "var(--ink-3)", marginTop: 1.5 }}>
-              {loading ? "Analyzing your workload…" : generated ? "Personalized to your homework & quizzes" : "Day-by-day recommendations, tailored to you"}
-            </div>
+    <div className="sn-card" style={{ marginBottom: 20, borderLeft: "3px solid var(--accent)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div className="sn-card-title" style={{ marginBottom: 2 }}>
+            <span style={{ fontFamily: "var(--f-display)", fontStyle: "italic", marginRight: 6 }}>✦</span>
+            <span>AI Study Plan</span>
+          </div>
+          <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)" }}>
+            Adapts to your homework, quizzes, and due dates
           </div>
         </div>
-        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
-          {generated && !loading && (
-            <button className="sn-btn ghost"
-              onClick={(e) => { e.stopPropagation(); generate(); }}
-              style={{ fontSize: 11, padding: "4px 10px" }}>↻ Refresh</button>
-          )}
-          {!generated && !loading && !error && (
-            <button className="sn-btn"
-              onClick={(e) => { e.stopPropagation(); generate(); setOpen(true); }}
-              style={{ fontSize: 11, padding: "4px 12px", background: "var(--accent)", color: "white", borderColor: "var(--accent)" }}>
-              Generate plan →
-            </button>
-          )}
-          <div style={{
-            width: 22, height: 22, borderRadius: 5,
-            background: "var(--bg-2)", border: "1px solid var(--hairline)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 11, color: "var(--ink-3)",
-            transform: open ? "rotate(0deg)" : "rotate(-90deg)",
-            transition: "transform 0.15s ease",
-          }}>▾</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {open && <button className="sn-btn ghost" onClick={generate} style={{ fontSize: 11 }}>↻ Regenerate</button>}
+          <button className="sn-btn" style={{ background: open ? "var(--bg-2)" : "var(--accent)", color: open ? "var(--ink)" : "white", borderColor: "var(--accent)" }}
+            onClick={() => setOpen(v => !v)}>
+            {open ? "Hide plan" : "Generate my plan →"}
+          </button>
         </div>
       </div>
+
       {open && (
-        <div style={{ padding: "16px 20px" }}>
+        <div style={{ marginTop: 16, borderTop: "1px solid var(--hairline)", paddingTop: 14 }}>
           {loading && (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", color: "var(--ink-2)" }}>
-              <div className="ai-dots"><span/><span/><span/></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontFamily: "var(--f-display)", fontStyle: "italic" }}>
+              <div className="ai-dots"><span></span><span></span><span></span></div>
               <style>{`.ai-dots{display:flex;gap:5px}.ai-dots span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:dot-pulse .9s ease infinite}.ai-dots span:nth-child(2){animation-delay:.15s}.ai-dots span:nth-child(3){animation-delay:.3s}@keyframes dot-pulse{0%,80%,100%{opacity:.25;transform:scale(.85)}40%{opacity:1;transform:scale(1.1)}}`}</style>
-              <span style={{ fontFamily: "var(--f-display)", fontStyle: "italic", fontSize: 13.5 }}>Building your personalized plan…</span>
+              Building your plan…
             </div>
           )}
+          {error && error !== "__no-key__" && <div style={{ color: "var(--accent)", fontSize: 13 }}>{error}</div>}
           {error === "__no-key__" && (
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-              padding: "14px 16px", borderRadius: 8,
-              background: "var(--bg-2)", border: "1px dashed var(--hairline)",
-            }}>
-              <div>
-                <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 4 }}>Connect Claude AI for a smart day-by-day study plan</div>
-                <div style={{ fontFamily: "var(--f-mono)", fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
-                  Adapts to your actual homework, urgency, and quiz schedule
-                </div>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 13, color: "var(--ink-2)" }}>Connect your API key to generate a real study plan.</div>
               <button className="sn-btn primary" style={{ flexShrink: 0, fontSize: 12 }}
-                onClick={() => window.dispatchEvent(new Event("openApiKeyModal"))}>
-                ✦ Connect AI
-              </button>
+                onClick={() => window.dispatchEvent(new Event("openApiKeyModal"))}>✦ Connect AI</button>
             </div>
           )}
-          {error && error !== "__no-key__" && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ color: "var(--accent)", fontSize: 12.5 }}>{error}</div>
-              <button className="sn-btn ghost" onClick={generate} style={{ fontSize: 11 }}>Retry</button>
+          {plan && (
+            <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--ink)" }}>
+              {plan.split("\n").map((line, i) => {
+                if (line.startsWith("**") && line.endsWith("**"))
+                  return <div key={i} style={{ fontFamily: "var(--f-display)", fontSize: 16, fontWeight: 600, marginTop: i > 0 ? 14 : 0, marginBottom: 4 }}>{line.replace(/\*\*/g, "")}</div>;
+                if (line.startsWith("- "))
+                  return <div key={i} style={{ display: "flex", gap: 8, paddingLeft: 4 }}><span style={{ color: "var(--accent)" }}>•</span>{line.slice(2)}</div>;
+                if (line.trim() === "") return <div key={i} style={{ height: 4 }} />;
+                return <div key={i} style={{ fontStyle: "italic", color: "var(--ink-2)", marginTop: 10 }}>{line}</div>;
+              })}
             </div>
           )}
-          {plan && (() => {
-            const { sections, trailingNote } = parsedPlan;
-            if (!sections.length && !trailingNote) return null;
-            return (
-              <div>
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(" + Math.min(sections.length, 5) + ", 1fr)",
-                  gap: 9,
-                  marginBottom: trailingNote ? 12 : 0,
-                }}>
-                  {sections.map((sec, si) => (
-                    <div key={si} style={{
-                      padding: "10px 11px", borderRadius: 7,
-                      background: "var(--bg-2)", border: "1px solid var(--hairline)",
-                      borderTop: "2px solid " + (si === 0 ? "var(--accent)" : "var(--hairline)"),
-                    }}>
-                      <div style={{
-                        fontFamily: "var(--f-mono)", fontSize: 9.5,
-                        color: si === 0 ? "var(--accent)" : "var(--ink-3)",
-                        textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 9, lineHeight: 1.2,
-                      }}>{sec.heading}</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {sec.items.length === 0 && (
-                          <div style={{ fontSize: 11, fontStyle: "italic", color: "var(--ink-3)" }}>Free day</div>
-                        )}
-                        {sec.items.map((item, ii) => {
-                          const color = subjectColorForItem(item);
-                          const dotIdx = item.lastIndexOf("·");
-                          const taskText = dotIdx > -1 ? item.slice(0, dotIdx).trim() : item;
-                          const timeText = dotIdx > -1 ? item.slice(dotIdx + 1).trim() : "";
-                          return (
-                            <div key={ii} style={{ display: "flex", gap: 6, alignItems: "flex-start", fontSize: 11.5, lineHeight: 1.4 }}>
-                              <span style={{ width: 5, height: 5, borderRadius: 1.5, background: color, flexShrink: 0, marginTop: 4 }}/>
-                              <div style={{ minWidth: 0 }}>
-                                <span style={{ color: "var(--ink)" }}>{taskText}</span>
-                                {timeText && (
-                                  <span style={{ fontFamily: "var(--f-mono)", fontSize: 9.5, color: "var(--ink-3)", marginLeft: 5 }}>· {timeText}</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {trailingNote && (
-                  <div style={{
-                    paddingTop: 12, borderTop: "1px solid var(--hairline)",
-                    fontFamily: "var(--f-display)", fontStyle: "italic",
-                    fontSize: 13, color: "var(--ink-2)", textAlign: "center", lineHeight: 1.5,
-                  }}>{trailingNote}</div>
-                )}
-              </div>
-            );
-          })()}
         </div>
       )}
     </div>
   );
 }
 
-// ─────────────── Pomodoro Focus Timer
 // ─────────────── Pomodoro Focus Timer
 
 function PomodoroTimer() {
@@ -755,9 +641,6 @@ function ScheduleContent() {
     </>
   );
 }
-
-
-// ─────────────── Schedule view (full week)
 
 // ─────────────── Grades view
 
