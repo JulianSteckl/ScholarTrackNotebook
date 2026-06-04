@@ -135,6 +135,10 @@ const DECKS = {
 const _fallbackSubject = { id: "unknown", name: "Unknown", short: "?", color: "#9a9082", grade: "—", teacher: "", room: "", notes: 0, hw: 0, quizzes: 0 };
 const subjectBy = (id) => SUBJECTS.find((s) => s.id === id) || _fallbackSubject;
 const deckBy = (id) => DECKS[id];
+const deckForSubject = (subjectId) => {
+  const entry = Object.entries(DECKS).find(([, d]) => d.subject === subjectId);
+  return entry ? entry[0] : "subject-" + subjectId;
+};
 
 // Per-subject notes — id, unit, title, when, then either content blocks or auto-generated placeholder.
 const NOTES_BY_SUBJECT = {
@@ -417,6 +421,6 @@ const TYPE_VOCAB = [
 Object.assign(window, {
   SUBJECTS, HOMEWORK, QUIZZES_UPCOMING, RECENT_NOTES, SCHEDULE_TODAY,
   WEEK, FLASHCARDS_BIO, MCQ_ALG2, TYPE_VOCAB, DECKS, NOTES_BY_SUBJECT,
-  subjectBy, deckBy, notesForSubject,
+  subjectBy, deckBy, deckForSubject, notesForSubject,
   getScheduleStatus, useScheduleStatus, schedToMinutes, fmtDuration,
 });
