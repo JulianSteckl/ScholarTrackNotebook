@@ -546,3 +546,161 @@ body, html { margin: 0; padding: 0; }
   0% { transform: rotateY(0deg); }
   100% { transform: rotateY(180deg); }
 }
+
+/* Page enter — plays on every route change */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Card / item stagger rise */
+@keyframes item-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal scale + slide */
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.97) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Sidebar entrance */
+@keyframes slide-from-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Toast slide in from right */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* Progress pip pop */
+@keyframes pip-pop {
+  0%   { transform: scale(0.5); opacity: 0.4; }
+  65%  { transform: scale(1.25); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Page content transition ───────────────────────────────────────── */
+.sn-content {
+  animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Stagger utility — wrap any grid/list with this class ─────────── */
+.stagger-children > * {
+  animation: item-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-children > *:nth-child(1)  { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2)  { animation-delay: 45ms; }
+.stagger-children > *:nth-child(3)  { animation-delay: 85ms; }
+.stagger-children > *:nth-child(4)  { animation-delay: 120ms; }
+.stagger-children > *:nth-child(5)  { animation-delay: 155ms; }
+.stagger-children > *:nth-child(6)  { animation-delay: 185ms; }
+.stagger-children > *:nth-child(7)  { animation-delay: 210ms; }
+.stagger-children > *:nth-child(8)  { animation-delay: 230ms; }
+.stagger-children > *:nth-child(n+9){ animation-delay: 250ms; }
+
+/* Auto-stagger grids — cards in any sn-grid or sn-grid-3 */
+.sn-grid > .sn-card,
+.sn-grid > .subj-card,
+.sn-grid-3 > .sn-card,
+.sn-grid-3 > .subj-card {
+  animation: item-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sn-grid > *:nth-child(1), .sn-grid-3 > *:nth-child(1) { animation-delay: 0ms; }
+.sn-grid > *:nth-child(2), .sn-grid-3 > *:nth-child(2) { animation-delay: 50ms; }
+.sn-grid > *:nth-child(3), .sn-grid-3 > *:nth-child(3) { animation-delay: 95ms; }
+.sn-grid > *:nth-child(4), .sn-grid-3 > *:nth-child(4) { animation-delay: 135ms; }
+.sn-grid > *:nth-child(5), .sn-grid-3 > *:nth-child(5) { animation-delay: 170ms; }
+.sn-grid > *:nth-child(n+6), .sn-grid-3 > *:nth-child(n+6) { animation-delay: 200ms; }
+
+/* ── Card hover lift ───────────────────────────────────────────────── */
+.sn-card {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.15s ease;
+}
+.sn-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 0.5px rgba(40,28,12,0.05),
+    0 1px 0 rgba(255,255,255,0.72) inset,
+    0 4px 10px rgba(30,20,8,0.1),
+    0 14px 32px rgba(30,20,8,0.1),
+    0 2px 0 0 var(--rule);
+}
+
+/* ── Subject card hover lift ───────────────────────────────────────── */
+.subj-card {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.22s ease,
+              border-color 0.15s ease;
+}
+.subj-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--ink);
+  box-shadow: 0 6px 18px rgba(30,20,8,0.11);
+}
+
+/* ── Button micro-interactions ─────────────────────────────────────── */
+.sn-btn {
+  transition: background 0.14s ease, border-color 0.14s ease,
+              color 0.14s ease, transform 0.1s ease,
+              box-shadow 0.14s ease;
+}
+.sn-btn:active:not(:disabled) { transform: scale(0.95); }
+
+/* ── Nav item smooth transitions ───────────────────────────────────── */
+.sn-nav-item {
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+/* ── Sidebar brand + nav group entrances ───────────────────────────── */
+.sn-brand {
+  animation: slide-from-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sn-nav-group {
+  animation: slide-from-left 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sn-nav-group:nth-child(2) { animation-delay: 40ms; }
+.sn-nav-group:nth-child(3) { animation-delay: 80ms; }
+.sn-nav-group:nth-child(4) { animation-delay: 115ms; }
+.sn-nav-group:nth-child(5) { animation-delay: 145ms; }
+
+/* ── Quiz progress pip pop ─────────────────────────────────────────── */
+.quiz-progress .pip.done {
+  animation: pip-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.quiz-progress .pip.current {
+  animation: pip-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Modal inner content pop ───────────────────────────────────────── */
+.sn-modal-box {
+  animation: modal-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Chip hover ────────────────────────────────────────────────────── */
+.chip {
+  transition: background 0.14s ease, border-color 0.14s ease,
+              transform 0.12s ease;
+}
+.chip:hover { transform: scale(1.04); }
+
+/* ── Homework check bounce ─────────────────────────────────────────── */
+.hw-check {
+  transition: background 0.18s ease, border-color 0.18s ease,
+              transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Respect reduced-motion preferences ────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

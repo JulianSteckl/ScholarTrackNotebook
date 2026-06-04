@@ -18,7 +18,7 @@ function Modal({ onClose, children, width = 640, top = "12vh" }) {
       paddingTop: top,
       animation: "fade-up 0.18s ease",
     }}>
-      <div onClick={(e) => e.stopPropagation()} className="sn-root" style={{
+      <div onClick={(e) => e.stopPropagation()} className="sn-root sn-modal-box" style={{
         width, maxWidth: "92vw", maxHeight: "78vh",
         background: "var(--surface)", border: "1px solid var(--hairline)",
         borderRadius: 8, overflow: "hidden",
@@ -1112,7 +1112,7 @@ function ToastHost() {
           padding: "9px 16px", borderRadius: 999,
           fontFamily: "var(--f-ui)", fontSize: 13, fontWeight: 500,
           boxShadow: "0 8px 24px -8px rgba(20,16,11,0.4)",
-          animation: "fade-up 0.2s ease",
+          animation: "toast-in 0.22s cubic-bezier(0.22,1,0.36,1) both",
         }}>{t.msg}</div>
       ))}
     </div>

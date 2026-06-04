@@ -330,12 +330,16 @@ function App() {
                 </>
               }
             />
-            <div className="sn-content" style={
-              isNote ? { padding: 0, display: "flex" } :
-              isQuiz ? { padding: 0 } :
-              route.view === "homework-detail" ? { padding: 0, display: "flex", overflow: "hidden" } :
-              undefined
-            }>
+            <div
+              key={route.view + (route.id || "") + (route.sub || "")}
+              className="sn-content"
+              style={
+                isNote ? { padding: 0, display: "flex" } :
+                isQuiz ? { padding: 0 } :
+                route.view === "homework-detail" ? { padding: 0, display: "flex", overflow: "hidden" } :
+                undefined
+              }
+            >
               <RouteView route={route} go={go} tweaks={tweaks} setTweak={setTweak} />
             </div>
           </main>
