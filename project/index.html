@@ -97,9 +97,16 @@ function parseRoute() {
   return { view: first };
 }
 
+const NAV_ORDER = {
+  dashboard: 0, homework: 1, subjects: 2, notes: 3,
+  quizzes: 4, flashcards: 5, schedule: 6, grades: 7, tools: 8,
+};
+
 function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [route, setRoute] = React.useState(parseRoute());
+  const prevViewRef = React.useRef(route.view);
+  const [navDir, setNavDir] = React.useState("");
   const [profile, setProfile] = React.useState(() => nbGetProfile());
 
   const handleOnboardingComplete = (p) => {
@@ -158,7 +165,18 @@ function App() {
   const handleSignOut = () => window.__fbAuth?.signOut();
 
   React.useEffect(() => {
-    const onHash = () => setRoute(parseRoute());
+    const onHash = () => {
+      const next = parseRoute();
+      const prevIdx = NAV_ORDER[prevViewRef.current] ?? -1;
+      const nextIdx = NAV_ORDER[next.view] ?? -1;
+      if (prevIdx >= 0 && nextIdx >= 0 && prevIdx !== nextIdx) {
+        setNavDir(nextIdx > prevIdx ? "nav-down" : "nav-up");
+      } else {
+        setNavDir("");
+      }
+      prevViewRef.current = next.view;
+      setRoute(next);
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -332,7 +350,7 @@ function App() {
             />
             <div
               key={route.view + (route.id || "") + (route.sub || "")}
-              className="sn-content"
+              className={`sn-content${navDir ? " " + navDir : ""}`}
               style={
                 isNote ? { padding: 0, display: "flex" } :
                 isQuiz ? { padding: 0 } :

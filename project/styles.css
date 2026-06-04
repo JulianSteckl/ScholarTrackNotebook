@@ -553,6 +553,16 @@ body, html { margin: 0; padding: 0; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Directional tab transitions */
+@keyframes enter-from-below {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes enter-from-above {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Card / item stagger rise */
 @keyframes item-rise {
   from { opacity: 0; transform: translateY(10px); }
@@ -587,6 +597,12 @@ body, html { margin: 0; padding: 0; }
 /* ── Page content transition ───────────────────────────────────────── */
 .sn-content {
   animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sn-content.nav-down {
+  animation: enter-from-below 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sn-content.nav-up {
+  animation: enter-from-above 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ── Stagger utility — wrap any grid/list with this class ─────────── */
